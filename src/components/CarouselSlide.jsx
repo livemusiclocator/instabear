@@ -11,10 +11,14 @@ const getSuburb = (address) => {
 const CarouselSlide = ({ gigs, pageNumber, totalPages, date }) => {
   const formatDate = (dateStr) => {
     const d = new Date(dateStr);
+    const weekday = d.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
+    const month = d.toLocaleDateString('en-US', { month: 'long' }).toUpperCase();
+    const dateNum = d.getDate();
+    
     return {
-      day: d.toLocaleDateString('en-US', { weekday: 'uppercase' }),
-      date: d.getDate(),
-      month: d.toLocaleDateString('en-US', { month: 'uppercase' })
+      day: weekday,
+      date: dateNum,
+      month: month
     };
   };
 
