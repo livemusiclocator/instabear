@@ -1,10 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const BRAND_BLUE = '#00B2E3';
 const BRAND_ORANGE = '#FF5C35';
 const INSTAGRAM_HEIGHT = 540;
 const HEADER_HEIGHT = 48;
 const MIN_BOTTOM_MARGIN = 24;
+const GIG_PANEL_BASE_HEIGHT = 64;  // Reduced since genre tags are now inline
+const GIG_NAME_LINE_HEIGHT = 24;
+const CHARS_PER_LINE = 35;
+const SAFE_CONTAINER_HEIGHT = INSTAGRAM_HEIGHT - HEADER_HEIGHT - MIN_BOTTOM_MARGIN;
 
 function toTitleCase(str) {
   return str.replace(
@@ -13,13 +17,49 @@ function toTitleCase(str) {
   );
 }
 
-function getStreetAddress(address) {
-  return address.split(',')[0].trim();
-}
-
 function getSuburb(address) {
   const match = address.match(/(?:,\s*)?([A-Za-z\s]+)(?:\s+\d{4})?$/);
   return match ? match[1].trim() : '';
+}
+
+function formatPrice(gig) {
+  if (gig.information_tags?.includes('free')) {
+    return 'Free';
+  }
+  if (gig.prices && gig.prices.length > 0) {
+    return `$${gig.prices[0].amount}`;
+  }
+  return '';
+}
+
+function calculateGigHeight(gigName) {
+  const lines = Math.ceil(gigName.length / CHARS_PER_LINE);
+  return GIG_PANEL_BASE_HEIGHT + (lines > 1 ? (lines - 1) * GIG_NAME_LINE_HEIGHT : 0);
+}
+
+function distributeGigs(gigs) {
+  const slides = [];
+  let currentSlide = [];
+  let currentSlideHeight = 0;
+
+  gigs.forEach(gig => {
+    const thisGigHeight = calculateGigHeight(gig.name);
+    
+    if (currentSlideHeight + thisGigHeight > SAFE_CONTAINER_HEIGHT) {
+      slides.push(currentSlide);
+      currentSlide = [gig];
+      currentSlideHeight = thisGigHeight;
+    } else {
+      currentSlide.push(gig);
+      currentSlideHeight += thisGigHeight;
+    }
+  });
+
+  if (currentSlide.length > 0) {
+    slides.push(currentSlide);
+  }
+
+  return slides;
 }
 
 function TitleSlide({ date }) {
@@ -53,31 +93,30 @@ function TitleSlide({ date }) {
   );
 }
 
-function GigPanel({ gig, index, slideIndex }) {
-  const street = getStreetAddress(gig.venue.address);
+function GigPanel({ gig, isLast }) {
   const suburb = getSuburb(gig.venue.address);
-  
-  // If venue name plus street is too long, just show suburb
-  const shouldShowStreet = (gig.venue.name.length + street.length) <= 35;
-  const location = shouldShowStreet ? `${street} ${suburb}` : suburb;
 
   return (
-    <div 
-      data-gig-id={`${slideIndex}-${index}`}
-      className="bg-black bg-opacity-40 rounded-lg p-2"
-    >
+    <div className={`bg-black bg-opacity-40 rounded-lg p-1.5 ${!isLast ? 'mb-0.5' : ''}`}>
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0">
-          <h3 className="text-white text-xl font-semibold leading-tight mb-0.5">
-            {toTitleCase(gig.name)}
-          </h3>
+          <div className="flex items-baseline gap-2 mb-0.5">
+            <h3 className="text-white text-xl font-semibold leading-tight">
+              {toTitleCase(gig.name)}
+            </h3>
+            {gig.genre_tags && gig.genre_tags.length > 0 && (
+              <span className="text-gray-400 text-sm font-light">
+                {gig.genre_tags.slice(0, 2).join(' · ')}
+              </span>
+            )}
+          </div>
           <div className="flex items-center">
-            <span style={{ color: BRAND_BLUE }} className="text-lg">
+            <span style={{ color: BRAND_BLUE }} className="text-lg truncate">
               {toTitleCase(gig.venue.name)}
             </span>
             <span className="text-gray-500 mx-1">•</span>
             <span className="text-gray-400 text-base">
-              {location}
+              {suburb}
             </span>
           </div>
         </div>
@@ -89,9 +128,7 @@ function GigPanel({ gig, index, slideIndex }) {
             style={{ color: BRAND_ORANGE }} 
             className="text-lg"
           >
-            {gig.prices && gig.prices.length > 0 
-              ? `$${gig.prices[0].amount}` 
-              : 'Free'}
+            {formatPrice(gig)}
           </div>
         </div>
       </div>
@@ -99,60 +136,11 @@ function GigPanel({ gig, index, slideIndex }) {
   );
 }
 
-function formatDate(dateStr) {
-  const d = new Date(dateStr);
-  return {
-    day: toTitleCase(d.toLocaleDateString('en-US', { weekday: 'long' })),
-    date: d.getDate(),
-    month: toTitleCase(d.toLocaleDateString('en-US', { month: 'long' }))
-  };
-}
-
 function InstagramGallery() {
   const [date, setDate] = useState('2024-11-30');
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [gigsPerSlide, setGigsPerSlide] = useState(8);
-  const slideContainerRef = useRef(null);
-  const [overflowingGigs, setOverflowingGigs] = useState([]);
-
-  useEffect(() => {
-    if (!slideContainerRef.current) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach(entry => {
-          console.log('Gig visibility:', {
-            gigId: entry.target.dataset.gigId,
-            isVisible: entry.isIntersecting,
-            ratio: entry.intersectionRatio,
-            bounds: entry.boundingClientRect
-          });
-        });
-
-        const overflowing = entries
-          .filter(entry => !entry.isIntersecting)
-          .map(entry => entry.target.dataset.gigId);
-        
-        setOverflowingGigs(overflowing);
-
-        if (overflowing.length > 0) {
-          setGigsPerSlide(prev => prev - 1);
-        }
-      },
-      {
-        root: slideContainerRef.current,
-        threshold: 1.0,
-        rootMargin: `-${MIN_BOTTOM_MARGIN}px 0px 0px 0px`
-      }
-    );
-
-    const gigPanels = slideContainerRef.current.querySelectorAll('.gig-panel');
-    gigPanels.forEach(panel => observer.observe(panel));
-
-    return () => observer.disconnect();
-  }, [gigs]);
 
   useEffect(() => {
     const fetchGigs = async () => {
@@ -176,10 +164,16 @@ function InstagramGallery() {
     fetchGigs();
   }, [date]);
 
-  const slides = [];
-  for (let i = 0; i < gigs.length; i += gigsPerSlide) {
-    slides.push(gigs.slice(i, i + gigsPerSlide));
-  }
+  const slides = distributeGigs(gigs);
+
+  const formatDate = (dateStr) => {
+    const d = new Date(dateStr);
+    return {
+      day: toTitleCase(d.toLocaleDateString('en-US', { weekday: 'long' })),
+      date: d.getDate(),
+      month: toTitleCase(d.toLocaleDateString('en-US', { month: 'long' }))
+    };
+  };
 
   return (
     <div className="min-h-screen bg-white p-8">
@@ -219,26 +213,19 @@ function InstagramGallery() {
                   {formatDate(date).day}
                 </h2>
                 <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">
-                  {slideIndex + 1} / {Math.ceil(gigs.length / gigsPerSlide)}
+                  {slideIndex + 1} / {slides.length}
                 </p>
               </div>
 
               {/* Gigs Container */}
-              <div 
-                ref={slideContainerRef} 
-                className="px-3 py-2 space-y-1 relative h-[476px]"
-              >
+              <div className="px-3 py-2 relative h-[476px]">
                 {slideGigs.map((gig, index) => (
-                  <GigPanel
-                    key={index}
+                  <GigPanel 
+                    key={index} 
                     gig={gig}
-                    index={index}
-                    slideIndex={slideIndex}
+                    isLast={index === slideGigs.length - 1}
                   />
                 ))}
-
-                {/* Bottom margin indicator */}
-                <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-gray-900 to-transparent pointer-events-none" />
               </div>
             </div>
           ))}
