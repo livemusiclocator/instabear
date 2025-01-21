@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const BRAND_BLUE = '#00B2E3';
 const BRAND_ORANGE = '#FF5C35';
-const INSTAGRAM_HEIGHT = 540; // Total height of Instagram slide
-const HEADER_HEIGHT = 80;     // Height of header section
-const PADDING_VERTICAL = 32;  // Total vertical padding (16px top + 16px bottom)
-const GIG_HEIGHT = 62;        // Height of each gig including margin
-const SAFE_BOTTOM_MARGIN = 16; // Ensures black border at bottom
+const INSTAGRAM_HEIGHT = 540;
+const HEADER_HEIGHT = 80;
+const MIN_BOTTOM_MARGIN = 16;
 
 function toTitleCase(str) {
   return str.replace(
@@ -15,21 +13,68 @@ function toTitleCase(str) {
   );
 }
 
+function TitleSlide({ date }) {
+  const formattedDate = new Date(date).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  return (
+    <div className="w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-center"
+         style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}>
+      <img 
+        src="/lml-logo.png"
+        alt="Live Music Locator"
+        className="w-32 h-32 mb-8"
+      />
+      <div className="text-center px-8">
+        <h1 className="text-white text-4xl font-bold mb-4">
+          Fitzroy & Collingwood
+        </h1>
+        <h2 className="text-white text-3xl mb-2">
+          Gig Guide
+        </h2>
+        <p className="text-2xl" style={{ color: BRAND_BLUE }}>
+          {toTitleCase(formattedDate)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function InstagramGallery() {
+  const [gigsPerSlide, setGigsPerSlide] = useState(7);
+  const contentRef = useRef(null);
   const [date, setDate] = useState('2024-11-30');
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Calculate max gigs that can fit
-  const availableHeight = INSTAGRAM_HEIGHT - HEADER_HEIGHT - PADDING_VERTICAL - SAFE_BOTTOM_MARGIN;
-  const maxGigsPerSlide = Math.floor(availableHeight / GIG_HEIGHT);
+  // Function to check content overflow
+  const checkOverflow = () => {
+    if (contentRef.current) {
+      const contentHeight = contentRef.current.scrollHeight;
+      const containerHeight = INSTAGRAM_HEIGHT - HEADER_HEIGHT - MIN_BOTTOM_MARGIN;
+      
+      console.log('Slide measurements:', {
+        contentHeight,
+        containerHeight,
+        difference: contentHeight - containerHeight,
+        currentGigsPerSlide: gigsPerSlide
+      });
 
-  console.log('Layout calculations:', {
-    availableHeight,
-    maxGigsPerSlide,
-    totalHeightNeeded: HEADER_HEIGHT + (maxGigsPerSlide * GIG_HEIGHT) + PADDING_VERTICAL + SAFE_BOTTOM_MARGIN
-  });
+      if (contentHeight > containerHeight) {
+        setGigsPerSlide(prev => prev - 1);
+      }
+    }
+  };
+
+  // Check for overflow when content changes
+  useEffect(() => {
+    checkOverflow();
+  }, [gigs, gigsPerSlide]);
 
   useEffect(() => {
     const fetchGigs = async () => {
@@ -53,10 +98,9 @@ function InstagramGallery() {
     fetchGigs();
   }, [date]);
 
-  // Create slides with safe number of gigs
   const slides = [];
-  for (let i = 0; i < gigs.length; i += maxGigsPerSlide) {
-    slides.push(gigs.slice(i, i + maxGigsPerSlide));
+  for (let i = 0; i < gigs.length; i += gigsPerSlide) {
+    slides.push(gigs.slice(i, i + gigsPerSlide));
   }
 
   const getSuburb = (address) => {
@@ -97,14 +141,18 @@ function InstagramGallery() {
       {/* Gallery of Instagram Slides */}
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-2 gap-8">
+          {/* Title Slide */}
+          <TitleSlide date={date} />
+          
+          {/* Gig Slides */}
           {slides.map((slideGigs, slideIndex) => (
             <div 
               key={slideIndex} 
               className="w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative"
               style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}
             >
-              {/* Header - Fixed height */}
-              <div className="h-20 p-4 border-b border-gray-800">
+              {/* Header */}
+              <div className="h-20 p-4 border-b border-gray-700">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <img 
@@ -123,18 +171,18 @@ function InstagramGallery() {
                   </div>
                   <div>
                     <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">
-                      {slideIndex + 1} / {Math.ceil(gigs.length / maxGigsPerSlide)}
+                      {slideIndex + 1} / {Math.ceil(gigs.length / gigsPerSlide)}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Gigs List - With known fixed heights */}
-              <div className="px-4 py-4 space-y-1">
+              {/* Gigs List */}
+              <div ref={contentRef} className="px-4 py-2">
                 {slideGigs.map((gig, index) => (
                   <div 
                     key={index} 
-                    className="bg-black bg-opacity-40 rounded-lg p-2 border-b border-gray-800"
+                    className="bg-black bg-opacity-40 rounded-lg p-2 mb-1 border-b-2 border-gray-700"
                   >
                     <div className="flex justify-between items-start gap-3">
                       <div className="flex-1 min-w-0">
