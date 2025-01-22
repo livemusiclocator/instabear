@@ -37,7 +37,7 @@ const createMeasurementContainer = () => {
 const measureGigHeight = (gig, container) => {
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = `
-    <div class="bg-black bg-opacity-40 rounded-lg p-1.5 mb-0.5">
+    <div class="bg-black bg-opacity-40 rounded-lg p-1.5 mb-0.25">
       <div class="flex justify-between items-start">
         <div class="flex-1 min-w-0">
           <div class="flex items-baseline gap-2 mb-0.5">
@@ -62,7 +62,7 @@ const measureGigHeight = (gig, container) => {
   container.appendChild(tempDiv);
   const height = tempDiv.firstElementChild.offsetHeight;
   container.removeChild(tempDiv);
-  return height + 2; // Add 2px for mb-0.5
+  return height + 1; // Add 1px for mb-0.25
 };
 
 // Build slides based on actual measurements
@@ -124,15 +124,8 @@ function GigPanel({ gig, isLast, index }) {
   const suburb = getSuburb(gig.venue.address);
   const panelRef = useRef(null);
 
-  useEffect(() => {
-    if (panelRef.current) {
-      const bounds = panelRef.current.getBoundingClientRect();
-      console.log(`Panel ${index} actual rendered height:`, bounds.height);
-    }
-  }, [index]);
-
   return (
-    <div ref={panelRef} className={`bg-black bg-opacity-40 rounded-lg p-1.5 ${!isLast ? 'mb-0.5' : ''} relative`}>
+    <div ref={panelRef} className={`bg-black bg-opacity-40 rounded-lg p-1.5 ${!isLast ? 'mb-0.25' : ''} relative`}>
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 mb-0.5">
@@ -149,8 +142,8 @@ function GigPanel({ gig, isLast, index }) {
             <span className="text-gray-400 text-base">{suburb}</span>
           </div>
         </div>
-        <div className="text-right ml-3 shrink-0">
-          <div className="text-white text-xl font-semibold">{gig.start_time}</div>
+        <div className="text-right ml-3 shrink-0 flex flex-col justify-center">
+          <div className="text-white text-xl font-semibold">{gig.start_time || '23:59'}</div>
           <div style={{ color: BRAND_ORANGE }} className="text-lg">
             {formatPrice(gig)}
           </div>
@@ -178,7 +171,16 @@ function InstagramGallery() {
         `https://api.lml.live/gigs/query?location=melbourne&date_from=${date}&date_to=${date}`
       );
       const data = await response.json();
-      const sortedGigs = data.sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+      // Filter out gigs with missing start_time and assign default value
+      const validGigs = data.map(gig => ({
+        ...gig,
+        start_time: gig.start_time || '23:59', // Default to 23:59 if start_time is missing
+      }));
+
+      // Sort gigs by start_time
+      const sortedGigs = validGigs.sort((a, b) => a.start_time.localeCompare(b.start_time));
+
       setGigs(sortedGigs);
     } catch (err) {
       setError(err.message);
