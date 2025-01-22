@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const BRAND_BLUE = '#00B2E3';
 const BRAND_ORANGE = '#FF5C35';
 const INSTAGRAM_HEIGHT = 540;
 const HEADER_HEIGHT = 48;
 const MIN_BOTTOM_MARGIN = 24;
-const GIG_PANEL_BASE_HEIGHT = 64;  // Reduced since genre tags are now inline
-const GIG_NAME_LINE_HEIGHT = 24;
-const CHARS_PER_LINE = 35;
-const SAFE_CONTAINER_HEIGHT = INSTAGRAM_HEIGHT - HEADER_HEIGHT - MIN_BOTTOM_MARGIN;
+const CONTAINER_HEIGHT = INSTAGRAM_HEIGHT - HEADER_HEIGHT - MIN_BOTTOM_MARGIN;
 
 function toTitleCase(str) {
   return str.replace(
@@ -32,26 +29,69 @@ function formatPrice(gig) {
   return '';
 }
 
-function calculateGigHeight(gigName) {
-  const lines = Math.ceil(gigName.length / CHARS_PER_LINE);
-  return GIG_PANEL_BASE_HEIGHT + (lines > 1 ? (lines - 1) * GIG_NAME_LINE_HEIGHT : 0);
+// New function to render a gig panel in a hidden div and measure its height
+function measureGigHeight(gig) {
+  const tempDiv = document.createElement('div');
+  tempDiv.style.cssText = 'position: absolute; visibility: hidden; width: 540px;';
+  
+  // Copy our gig panel structure
+  tempDiv.innerHTML = `
+    <div class="bg-black bg-opacity-40 rounded-lg p-1.5 mb-0.5">
+      <div class="flex justify-between items-start">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-baseline gap-2 mb-0.5">
+            <h3 class="text-white text-xl font-semibold leading-tight">
+              ${toTitleCase(gig.name)}
+            </h3>
+            ${gig.genre_tags && gig.genre_tags.length > 0 ? `
+              <span class="text-gray-400 text-sm font-light">
+                ${gig.genre_tags.slice(0, 2).join(' · ')}
+              </span>
+            ` : ''}
+          </div>
+          <div class="flex items-center">
+            <span class="text-lg truncate">${toTitleCase(gig.venue.name)}</span>
+            <span class="text-gray-500 mx-1">•</span>
+            <span class="text-gray-400 text-base">${getSuburb(gig.venue.address)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(tempDiv);
+  const height = tempDiv.firstElementChild.offsetHeight;
+  document.body.removeChild(tempDiv);
+  
+  console.log(`Measured height for gig "${gig.name}":`, height);
+  return height;
 }
 
-function distributeGigs(gigs) {
+// New function to build slides based on actual measurements
+function buildSlides(gigs) {
   const slides = [];
   let currentSlide = [];
-  let currentSlideHeight = 0;
+  let currentHeight = 0;
 
   gigs.forEach(gig => {
-    const thisGigHeight = calculateGigHeight(gig.name);
+    const gigHeight = measureGigHeight(gig);
     
-    if (currentSlideHeight + thisGigHeight > SAFE_CONTAINER_HEIGHT) {
+    if (currentHeight + gigHeight > CONTAINER_HEIGHT) {
+      console.log('Starting new slide due to height:', {
+        currentHeight,
+        gigHeight,
+        containerHeight: CONTAINER_HEIGHT
+      });
       slides.push(currentSlide);
       currentSlide = [gig];
-      currentSlideHeight = thisGigHeight;
+      currentHeight = gigHeight;
     } else {
       currentSlide.push(gig);
-      currentSlideHeight += thisGigHeight;
+      currentHeight += gigHeight;
+      console.log('Added gig to current slide:', {
+        currentHeight,
+        remainingSpace: CONTAINER_HEIGHT - currentHeight
+      });
     }
   });
 
@@ -93,11 +133,31 @@ function TitleSlide({ date }) {
   );
 }
 
-function GigPanel({ gig, isLast }) {
+function GigPanel({ gig, isLast, index }) {
   const suburb = getSuburb(gig.venue.address);
+  const panelRef = useRef(null);
+
+  useEffect(() => {
+    if (panelRef.current) {
+      const bounds = panelRef.current.getBoundingClientRect();
+      console.log(`Panel ${index} actual rendered height:`, bounds.height);
+    }
+  }, [index]);
 
   return (
-    <div className={`bg-black bg-opacity-40 rounded-lg p-1.5 ${!isLast ? 'mb-0.5' : ''}`}>
+    <div 
+      ref={panelRef}
+      className={`
+        bg-black bg-opacity-40 rounded-lg p-1.5 
+        ${!isLast ? 'mb-0.5' : ''} 
+        relative border border-blue-500 border-opacity-25
+      `}
+    >
+      {/* Debug overlay */}
+      <div className="absolute right-0 top-0 bg-black bg-opacity-50 text-white text-xs p-1">
+        #{index}
+      </div>
+      
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 mb-0.5">
@@ -141,6 +201,8 @@ function InstagramGallery() {
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const containerRef = useRef(null);
+  const [slides, setSlides] = useState([]);
 
   useEffect(() => {
     const fetchGigs = async () => {
@@ -164,7 +226,13 @@ function InstagramGallery() {
     fetchGigs();
   }, [date]);
 
-  const slides = distributeGigs(gigs);
+  // Build slides after gigs are loaded
+  useEffect(() => {
+    if (gigs.length > 0) {
+      const newSlides = buildSlides(gigs);
+      setSlides(newSlides);
+    }
+  }, [gigs]);
 
   const formatDate = (dateStr) => {
     const d = new Date(dateStr);
@@ -217,13 +285,24 @@ function InstagramGallery() {
                 </p>
               </div>
 
-              {/* Gigs Container */}
-              <div className="px-3 py-2 relative h-[476px]">
+              {/* Gigs Container with Debug Visualization */}
+              <div 
+                ref={containerRef}
+                className="px-3 py-2 relative h-[476px] border border-red-500 border-opacity-50"
+              >
+                {/* Debug overlay */}
+                <div className="absolute right-0 top-0 bg-black bg-opacity-50 text-white text-xs p-1">
+                  Height: 476px
+                </div>
+                {/* Bottom boundary line */}
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-yellow-500 bg-opacity-50" />
+                
                 {slideGigs.map((gig, index) => (
                   <GigPanel 
                     key={index} 
                     gig={gig}
                     isLast={index === slideGigs.length - 1}
+                    index={index}
                   />
                 ))}
               </div>
