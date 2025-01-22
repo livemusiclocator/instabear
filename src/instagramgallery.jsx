@@ -73,14 +73,14 @@ function GigPanel({ gig, isLast, index }) {
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0">
           {/* Gig Name and Genre Tag */}
-          <div className="flex items-end gap-2 mb-0.5">
+          <div className="flex justify-between items-end mb-0.5">
             <h3 ref={gigNameRef} className="text-white text-xl font-semibold leading-tight">
               {toTitleCase(gig.name)}
             </h3>
             {showGenreTag && gig.genre_tags?.length > 0 && (
               <span 
                 className="text-sm font-light whitespace-nowrap"
-                style={{ color: '#A0D2EB' }} // Light blue-grey color
+                style={{ color: '#00B2E3' }} // Slightly bluer color
               >
                 {gig.genre_tags[0]} {/* Display only the first genre tag */}
               </span>
