@@ -1,12 +1,18 @@
 import fs from 'fs';
 import fetch from 'node-fetch';
+import {
+  toTitleCase,
+  getSuburb,
+  formatPrice,
+  createMeasurementContainer,
+  measureGigHeight,
+  buildSlides,
+  generateLogId,
+} from './layout-logic.js';
 
 const API_BASE = 'https://api.lml.live/gigs/query';
 const WEEKS_TO_ANALYZE = 15;
 const CONTAINER_HEIGHT = 476; // Height of the container for gig panels
-
-// Reuse layout logic from React app
-const { toTitleCase, getSuburb, formatPrice, createMeasurementContainer, measureGigHeight, buildSlides } = require('./layout-logic.js');
 
 // Fetch gigs for a specific week
 async function fetchGigsForWeek(startDate) {
@@ -26,17 +32,22 @@ async function fetchGigsForWeek(startDate) {
 }
 
 // Generate HTML for a single slide
-function generateSlideHTML(slideGigs, slideIndex, totalSlides) {
+function generateSlideHTML(slideGigs, slideIndex, totalSlides, logs) {
   return `
     <div class="slide">
       <h2>Slide ${slideIndex + 1} of ${totalSlides}</h2>
-      ${slideGigs.map(gig => `
-        <div class="gig-panel">
-          <h3>${toTitleCase(gig.name)}</h3>
-          <p>${toTitleCase(gig.venue.name)} • ${getSuburb(gig.venue.address)}</p>
-          <p>${gig.start_time || '23:59'} • ${formatPrice(gig)}</p>
-        </div>
-      `).join('')}
+      ${slideGigs.map(gig => {
+        const logId = generateLogId(gig, gig.date);
+        const logEntry = logs.find(log => log.logId === logId);
+        return `
+          <div class="gig-panel">
+            <h3>${toTitleCase(gig.name)}</h3>
+            <p>${toTitleCase(gig.venue.name)} • ${getSuburb(gig.venue.address)}</p>
+            <p>${gig.start_time || '23:59'} • ${formatPrice(gig)}</p>
+            ${logEntry ? `<p class="log-id" style="color: red;">Log ID: ${logId}</p>` : ''}
+          </div>
+        `;
+      }).join('')}
     </div>
   `;
 }
@@ -65,7 +76,7 @@ async function analyzeGigLayouts() {
   }
 
   // Build slides using the layout logic from the React app
-  const slides = buildSlides(allGigs);
+  const { slides, logs } = buildSlides(allGigs, CONTAINER_HEIGHT);
 
   // Generate HTML
   const html = `
@@ -82,20 +93,28 @@ async function analyzeGigLayouts() {
         h2 { margin: 0 0 10px; }
         h3 { margin: 0 0 5px; }
         p { margin: 0; }
+        .log-id { font-size: 12px; color: red; }
       </style>
     </head>
     <body>
       <h1>Gig Layout Analysis</h1>
-      ${slides.map((slideGigs, slideIndex) => generateSlideHTML(slideGigs, slideIndex, slides.length)).join('')}
+      ${slides.map((slideGigs, slideIndex) => generateSlideHTML(slideGigs, slideIndex, slides.length, logs)).join('')}
     </body>
     </html>
   `;
 
   // Write to HTML file
-  const filename = 'gig_layout_analysis.html';
-  fs.writeFileSync(filename, html);
+  const htmlFilename = 'gig_layout_analysis.html';
+  fs.writeFileSync(htmlFilename, html);
 
-  console.log(`Analysis complete! Written to ${filename}`);
+  // Write logs to a file
+  const logFilename = 'gig_layout_logs.txt';
+  const logContent = logs.map(log => `[${log.logId}] ${log.message}`).join('\n');
+  fs.writeFileSync(logFilename, logContent);
+
+  console.log(`Analysis complete!`);
+  console.log(`HTML file written to ${htmlFilename}`);
+  console.log(`Logs written to ${logFilename}`);
 }
 
 analyzeGigLayouts().catch(console.error);
