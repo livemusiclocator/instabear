@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { toPng } from 'html-to-image';
 
 const BRAND_BLUE = '#00B2E3';
 const BRAND_ORANGE = '#FF5C35';
 const INSTAGRAM_HEIGHT = 540;
 const HEADER_HEIGHT = 48;
 const MIN_BOTTOM_MARGIN = 24;
-const CONTAINER_HEIGHT = INSTAGRAM_HEIGHT - HEADER_HEIGHT - MIN_BOTTOM_MARGIN - 16; // Added 16px buffer
+const CONTAINER_HEIGHT = INSTAGRAM_HEIGHT - HEADER_HEIGHT - MIN_BOTTOM_MARGIN - 16;
 
-// Utility to measure text width
+// Utility functions unchanged
 function measureTextWidth(text, fontSize, fontWeight) {
   const measure = document.createElement('span');
   measure.style.cssText = `
@@ -56,8 +57,7 @@ function GigPanel({ gig, isLast, index }) {
       const gigNameWidth = gigNameRef.current.offsetWidth;
       const genreTagWidth = measureTextWidth(gig.genre_tags[0], '14px', '300');
 
-      // Check if the genre tag fits without breaking the layout
-      if (gigNameWidth + genreTagWidth + 20 <= panelWidth) { // 20px for padding/margins
+      if (gigNameWidth + genreTagWidth + 20 <= panelWidth) {
         setShowGenreTag(true);
       } else {
         setShowGenreTag(false);
@@ -68,11 +68,10 @@ function GigPanel({ gig, isLast, index }) {
   return (
     <div
       ref={panelRef}
-      className={`bg-black bg-opacity-40 rounded-lg p-1.5 ${!isLast ? 'mb-0.25' : ''} relative`}
+      className={`bg-black bg-opacity-40 backdrop-blur-sm rounded-lg p-1.5 ${!isLast ? 'mb-0.25' : ''} relative shadow-lg`}
     >
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0">
-          {/* Gig Name and Genre Tag */}
           <div className="flex justify-between items-end mb-0.5">
             <h3 ref={gigNameRef} className="text-white text-xl font-semibold leading-tight">
               {toTitleCase(gig.name)}
@@ -80,14 +79,13 @@ function GigPanel({ gig, isLast, index }) {
             {showGenreTag && gig.genre_tags?.length > 0 && (
               <span 
                 className="text-sm font-light whitespace-nowrap"
-                style={{ color: '#00B2E3' }} // Slightly bluer color
+                style={{ color: '#00B2E3' }}
               >
-                {gig.genre_tags[0]} {/* Display only the first genre tag */}
+                {gig.genre_tags[0]}
               </span>
             )}
           </div>
 
-          {/* Venue and Address */}
           <div className="flex items-center">
             <span style={{ color: BRAND_BLUE }} className="text-lg truncate">
               {toTitleCase(gig.venue.name)}
@@ -99,7 +97,6 @@ function GigPanel({ gig, isLast, index }) {
           </div>
         </div>
 
-        {/* Start Time and Price */}
         <div className="text-right ml-3 shrink-0">
           <div className="text-white text-xl font-semibold">
             {gig.start_time}
@@ -145,8 +142,8 @@ function InstagramGallery() {
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const slideRefs = useRef([]);
 
-  // Fetch and process gigs
   const fetchGigs = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -173,7 +170,6 @@ function InstagramGallery() {
     fetchGigs();
   }, [fetchGigs]);
 
-  // Build slides with height calculations
   const slides = useMemo(() => {
     const result = [];
     let currentSlide = [];
@@ -200,6 +196,46 @@ function InstagramGallery() {
     return result;
   }, [gigs]);
 
+  // Updated render function with new options
+  const renderSlidesToImages = async () => {
+    try {
+      for (let i = 0; i < slideRefs.current.length; i++) {
+        const slide = slideRefs.current[i];
+        if (slide) {
+          // Get actual element size without scaling
+          const rect = slide.getBoundingClientRect();
+          const scale = 1024 / rect.width; // Calculate scale to reach 1024px
+          
+          // Ensure we get the full content
+          const options = {
+            width: 1024,
+            height: 1024,
+            pixelRatio: 2,
+            style: {
+              transform: 'scale(1.89)', // Scale from 540 to 1024
+              transformOrigin: 'top left'
+            },
+            backgroundColor: '#1a1a1a',
+            preserveAlpha: true,
+            quality: 1.0
+          };
+
+          const dataUrl = await toPng(slide, options);
+          
+          const formattedDate = date.replace(/-/g, '');
+          const filename = `gigs_${formattedDate}_carousel${i + 1}.png`;
+          
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = filename;
+          link.click();
+        }
+      }
+    } catch (err) {
+      console.error('Error rendering slides to images:', err);
+    }
+  };
+
   const formatDate = (dateStr) => {
     const d = new Date(dateStr);
     return {
@@ -211,7 +247,6 @@ function InstagramGallery() {
 
   return (
     <div className="min-h-screen bg-white p-8">
-      {/* Date Picker */}
       <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
         <div className="flex items-center gap-4">
           <input
@@ -230,7 +265,6 @@ function InstagramGallery() {
         </div>
       </div>
 
-      {/* Gallery */}
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-2 gap-8">
           <TitleSlide date={date} />
@@ -238,10 +272,11 @@ function InstagramGallery() {
           {slides.map((slideGigs, slideIndex) => (
             <div 
               key={slideIndex} 
+              ref={(el) => (slideRefs.current[slideIndex] = el)}
               className="w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative"
               style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}
+              style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}
             >
-              {/* Header */}
               <div className="h-12 px-4 flex items-center justify-between border-b border-gray-700">
                 <h2 className="text-white text-2xl font-bold">
                   {formatDate(date).day}
@@ -251,7 +286,6 @@ function InstagramGallery() {
                 </p>
               </div>
 
-              {/* Gigs List */}
               <div className="px-3 py-2 relative h-[476px]">
                 {slideGigs.map((gig, index) => (
                   <GigPanel 
@@ -265,6 +299,15 @@ function InstagramGallery() {
             </div>
           ))}
         </div>
+      </div>
+
+      <div className="text-center mt-8">
+        <button
+          onClick={renderSlidesToImages}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Render Slides to Images
+        </button>
       </div>
 
       {error && (
