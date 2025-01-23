@@ -119,7 +119,7 @@ function TitleSlide({ date }) {
   });
 
   return (
-    <div className="w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-center"
+    <div className="title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-center"
          style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}>
       <img src="/lml-logo.png" alt="Live Music Locator" className="w-32 h-32 mb-8" />
       <div className="text-center px-8">
@@ -196,17 +196,45 @@ function InstagramGallery() {
     return result;
   }, [gigs]);
 
-  // Updated render function with new options
   const renderSlidesToImages = async () => {
     try {
+      // Render the title slide first
+      const titleSlide = document.querySelector('.title-slide');
+      if (titleSlide) {
+        const rect = titleSlide.getBoundingClientRect();
+        const scale = 1024 / rect.width; // Calculate scale to reach 1024px
+
+        const options = {
+          width: 1024,
+          height: 1024,
+          pixelRatio: 2,
+          style: {
+            transform: 'scale(1.89)', // Scale from 540 to 1024
+            transformOrigin: 'top left'
+          },
+          backgroundColor: '#1a1a1a',
+          preserveAlpha: true,
+          quality: 1.0
+        };
+
+        const dataUrl = await toPng(titleSlide, options);
+
+        const formattedDate = date.replace(/-/g, '');
+        const filename = `gigs_${formattedDate}_carousel0.png`;
+
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = filename;
+        link.click();
+      }
+
+      // Render the rest of the slides
       for (let i = 0; i < slideRefs.current.length; i++) {
         const slide = slideRefs.current[i];
         if (slide) {
-          // Get actual element size without scaling
           const rect = slide.getBoundingClientRect();
           const scale = 1024 / rect.width; // Calculate scale to reach 1024px
-          
-          // Ensure we get the full content
+
           const options = {
             width: 1024,
             height: 1024,
@@ -221,10 +249,10 @@ function InstagramGallery() {
           };
 
           const dataUrl = await toPng(slide, options);
-          
+
           const formattedDate = date.replace(/-/g, '');
           const filename = `gigs_${formattedDate}_carousel${i + 1}.png`;
-          
+
           const link = document.createElement('a');
           link.href = dataUrl;
           link.download = filename;
@@ -274,7 +302,6 @@ function InstagramGallery() {
               key={slideIndex} 
               ref={(el) => (slideRefs.current[slideIndex] = el)}
               className="w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative"
-              style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}
               style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}
             >
               <div className="h-12 px-4 flex items-center justify-between border-b border-gray-700">
