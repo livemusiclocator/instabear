@@ -1,0 +1,38 @@
+name: Post Gig Guide to Instagram
+
+on:
+  schedule:
+    - cron: '35 7 * * *' # Runs at 7:35 AM UTC every day
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  post-gig-guide:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate gig guide images
+        run: npm run generate-images
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+
+      - name: Post carousel to Instagram
+        run: npm run post-carousel
+        env:
+          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+
+      - name: Send Slack notification
+        run: npm run send-slack-notification
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
