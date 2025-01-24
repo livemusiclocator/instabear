@@ -119,8 +119,7 @@ function TitleSlide({ date }) {
   });
 
   return (
-    <div className="title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-center"
-         style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}>
+    <div className="title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-center">
       <img src="/lml-logo.png" alt="Live Music Locator" className="w-32 h-32 mb-8" />
       <div className="text-center px-8">
         <h1 className="text-white text-4xl font-bold mb-4">
@@ -135,6 +134,22 @@ function TitleSlide({ date }) {
       </div>
     </div>
   );
+}
+
+function generateCaption(slideGigs, slideIndex, totalSlides, date) {
+  const formattedDate = new Date(date).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  let caption = `More information here: https://lml.live/?dateRange=today\n\n`;
+  caption += `🎵 Live Music Locator - ${formattedDate}\n`;
+  caption += `Slide ${slideIndex + 1} of ${totalSlides}\n\n`;
+  caption += slideGigs.map(gig => `🎤 ${gig.name} @ ${gig.venue.name} - ${gig.start_time}`).join('\n');
+
+  return caption;
 }
 
 function InstagramGallery() {
@@ -198,20 +213,15 @@ function InstagramGallery() {
 
   const renderSlidesToImages = async () => {
     try {
+      let captions = [];
+
       // Render the title slide first
       const titleSlide = document.querySelector('.title-slide');
       if (titleSlide) {
-        const rect = titleSlide.getBoundingClientRect();
-        const scale = 1024 / rect.width; // Calculate scale to reach 1024px
-
         const options = {
           width: 1024,
           height: 1024,
           pixelRatio: 2,
-          style: {
-            transform: 'scale(1.89)', // Scale from 540 to 1024
-            transformOrigin: 'top left'
-          },
           backgroundColor: '#1a1a1a',
           preserveAlpha: true,
           quality: 1.0
@@ -226,23 +236,22 @@ function InstagramGallery() {
         link.href = dataUrl;
         link.download = filename;
         link.click();
+
+        // Add title slide caption with the new description and link
+        const titleCaption = `Live Music Locator is a not-for-profit service designed to make it possible to discover every gig playing at every venue across every genre at any one time. 
+This information will always be verified and free, importantly supporting musicians, our small to medium live music venues, and you the punters.
+More detailed gig information here: https://lml.live/?dateRange=today`;
+        captions.push(titleCaption);
       }
 
       // Render the rest of the slides
       for (let i = 0; i < slideRefs.current.length; i++) {
         const slide = slideRefs.current[i];
         if (slide) {
-          const rect = slide.getBoundingClientRect();
-          const scale = 1024 / rect.width; // Calculate scale to reach 1024px
-
           const options = {
             width: 1024,
             height: 1024,
             pixelRatio: 2,
-            style: {
-              transform: 'scale(1.89)', // Scale from 540 to 1024
-              transformOrigin: 'top left'
-            },
             backgroundColor: '#1a1a1a',
             preserveAlpha: true,
             quality: 1.0
@@ -257,20 +266,22 @@ function InstagramGallery() {
           link.href = dataUrl;
           link.download = filename;
           link.click();
+
+          // Generate and add caption with the link
+          const caption = generateCaption(slides[i], i, slides.length, date);
+          captions.push(caption);
         }
       }
+
+      // Save captions to captions.txt
+      const captionsBlob = new Blob([captions.join('\n\n')], { type: 'text/plain' });
+      const captionsLink = document.createElement('a');
+      captionsLink.href = URL.createObjectURL(captionsBlob);
+      captionsLink.download = 'captions.txt';
+      captionsLink.click();
     } catch (err) {
       console.error('Error rendering slides to images:', err);
     }
-  };
-
-  const formatDate = (dateStr) => {
-    const d = new Date(dateStr);
-    return {
-      day: toTitleCase(d.toLocaleDateString('en-US', { weekday: 'long' })),
-      date: d.getDate(),
-      month: toTitleCase(d.toLocaleDateString('en-US', { month: 'long' }))
-    };
   };
 
   return (
@@ -302,11 +313,10 @@ function InstagramGallery() {
               key={slideIndex} 
               ref={(el) => (slideRefs.current[slideIndex] = el)}
               className="w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative"
-              style={{ transform: 'scale(0.5)', transformOrigin: 'top left' }}
             >
               <div className="h-12 px-4 flex items-center justify-between border-b border-gray-700">
                 <h2 className="text-white text-2xl font-bold">
-                  {formatDate(date).day}
+                  {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
                 </h2>
                 <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">
                   {slideIndex + 1} / {slides.length}
