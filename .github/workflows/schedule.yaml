@@ -1,12 +1,13 @@
-name: Post Gig Guide to Instagram
+# .github/workflows/generate-and-post.yml
+name: Generate and Post Gig Guide
 
 on:
   schedule:
-    - cron: '35 7 * * *' # Runs at 7:35 AM UTC every day
-  workflow_dispatch: # Allows manual triggering
+    - cron: '35 7 * * *' # 7:35 AM daily
+  workflow_dispatch: # Allow manual triggers
 
 jobs:
-  post-gig-guide:
+  generate-images:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -15,24 +16,28 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: 18
 
       - name: Install dependencies
         run: npm install
 
-      - name: Generate gig guide images
-        run: npm run generate-images
-        env:
-          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
-          INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+      - name: Start React app
+        run: npm run dev & # Start the React app in the background
 
-      - name: Post carousel to Instagram
-        run: npm run post-carousel
-        env:
-          INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
-          INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+      - name: Generate images
+        run: node generateImages.js
+
+      - name: Upload images to Imgur
+        run: |
+          # Add Imgur upload logic here
+          echo "Uploading images to Imgur..."
+
+      - name: Post to Instagram
+        run: |
+          # Add Instagram posting logic here
+          echo "Posting to Instagram..."
 
       - name: Send Slack notification
-        run: npm run send-slack-notification
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          # Add Slack notification logic here
+          echo "Sending Slack notification..."
