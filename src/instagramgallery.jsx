@@ -8,7 +8,7 @@ const HEADER_HEIGHT = 48;
 const MIN_BOTTOM_MARGIN = 24;
 const CONTAINER_HEIGHT = INSTAGRAM_HEIGHT - HEADER_HEIGHT - MIN_BOTTOM_MARGIN - 16;
 
-// Utility functions unchanged
+// Utility functions
 function measureTextWidth(text, fontSize, fontWeight) {
   const measure = document.createElement('span');
   measure.style.cssText = `
@@ -46,6 +46,21 @@ function formatPrice(gig) {
   return '';
 }
 
+// Define window.setGigs outside the component
+let setGigsFunction = null;
+window.setGigs = (gigs) => {
+  if (setGigsFunction) {
+    setGigsFunction((prevGigs) => {
+      // Only update if the gigs are different
+      if (JSON.stringify(prevGigs) !== JSON.stringify(gigs)) {
+        return gigs;
+      }
+      return prevGigs;
+    });
+  }
+};
+
+// GigPanel component
 function GigPanel({ gig, isLast, index }) {
   const gigNameRef = useRef(null);
   const panelRef = useRef(null);
@@ -110,6 +125,7 @@ function GigPanel({ gig, isLast, index }) {
   );
 }
 
+// TitleSlide component
 function TitleSlide({ date }) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -136,6 +152,7 @@ function TitleSlide({ date }) {
   );
 }
 
+// Function to generate captions
 function generateCaption(slideGigs, slideIndex, totalSlides, date) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -152,6 +169,7 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date) {
   return caption;
 }
 
+// Main InstagramGallery component
 function InstagramGallery() {
   const [date, setDate] = useState('2024-11-30');
   const [gigs, setGigs] = useState([]);
@@ -159,6 +177,15 @@ function InstagramGallery() {
   const [error, setError] = useState(null);
   const slideRefs = useRef([]);
 
+  // Set the setGigs function for window.setGigs
+  useEffect(() => {
+    setGigsFunction = setGigs;
+    return () => {
+      setGigsFunction = null;
+    };
+  }, []);
+
+  // Fetch gigs from the API
   const fetchGigs = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -181,10 +208,12 @@ function InstagramGallery() {
     setLoading(false);
   }, [date]);
 
+  // Fetch gigs on component mount or when date changes
   useEffect(() => {
     fetchGigs();
   }, [fetchGigs]);
 
+  // Organize gigs into slides
   const slides = useMemo(() => {
     const result = [];
     let currentSlide = [];
@@ -211,6 +240,7 @@ function InstagramGallery() {
     return result;
   }, [gigs]);
 
+  // Render slides to images
   const renderSlidesToImages = async () => {
     try {
       let captions = [];

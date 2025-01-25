@@ -1,38 +1,11 @@
 const axios = require('axios');
 
-// Replace with your access token and Instagram Business Account ID
-const ACCESS_TOKEN = 'EAAYuL4tgnWEBO5tUTTrCKNC4htZCjtGw4tJLZC1AsVJV5f4xOZA8BOIlGwcGM57SLH94lDiU4vuXVZCnUUkWDgI6nV749ZCZC5U9RJqbPiQZCjWZBATuhMlXszDqXf50QZC0tRbHZCkKkiQDpjP336ZAZAwgvJsw1RswqbcLzDwvq3vhisw7EGI9AMX4XQZDZD';
-const INSTAGRAM_BUSINESS_ACCOUNT_ID = '17841467087794365'; // Replace with your Instagram Business Account ID
-
-// Direct Imgur URLs for testing
-const imageFiles = [
-  'https://i.imgur.com/NvZwaYL.png', // Replace with the actual URL for gigs_20241130_carousel0.png
-  'https://i.imgur.com/5qCuJ9D.png', // Replace with the actual URL for gigs_20241130_carousel1.png
-  'https://i.imgur.com/xIRiG7A.png', // Replace with the actual URL for gigs_20241130_carousel2.png
-];
-
-// Function to replace placeholders in the caption
-function formatCaption(caption, date, numberOfGigs) {
-  return caption
-    .replace('[Insert Date Here]', date)
-    .replace('[Insert number of gigs here]', numberOfGigs);
-}
-
-// Function to validate image URLs
-function validateImageUrls(imageUrls) {
-  return imageUrls.every(url => {
-    try {
-      new URL(url); // Check if the URL is valid
-      return true;
-    } catch (error) {
-      console.error(`Invalid image URL: ${url}`);
-      return false;
-    }
-  });
-}
+// Access secrets from environment variables
+const ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
 
 // Function to upload images and create a carousel
-async function postCarouselToInstagram() {
+async function postCarouselToInstagram(imageFiles) {
   try {
     // Hardcoded caption for testing
     const captionTemplate = 'Check out these gigs! [Insert Date Here]. [Insert number of gigs here] gigs available.';
@@ -111,6 +84,5 @@ async function postCarouselToInstagram() {
   }
 }
 
-// Run the function
-postCarouselToInstagram();
-
+// Export the function for use in the workflow
+module.exports = postCarouselToInstagram;
