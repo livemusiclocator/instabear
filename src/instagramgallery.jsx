@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toPng } from 'html-to-image';
 
-// Constants
 const BRAND_BLUE = '#00B2E3';
 const BRAND_ORANGE = '#FF5C35';
 const INSTAGRAM_HEIGHT = 540;
@@ -9,7 +8,7 @@ const HEADER_HEIGHT = 48;
 const MIN_BOTTOM_MARGIN = 24;
 const CONTAINER_HEIGHT = INSTAGRAM_HEIGHT - HEADER_HEIGHT - MIN_BOTTOM_MARGIN - 16;
 
-// Utility functions
+// Utility functions unchanged
 function measureTextWidth(text, fontSize, fontWeight) {
   const measure = document.createElement('span');
   measure.style.cssText = `
@@ -47,28 +46,6 @@ function formatPrice(gig) {
   return '';
 }
 
-// Define window.setGigs and window.setDate outside the component
-let setGigsFunction = null;
-let setDateFunction = null;
-
-window.setGigs = (gigs) => {
-  if (setGigsFunction) {
-    setGigsFunction((prevGigs) => {
-      if (JSON.stringify(prevGigs) !== JSON.stringify(gigs)) {
-        return gigs;
-      }
-      return prevGigs;
-    });
-  }
-};
-
-window.setDate = (date) => {
-  if (setDateFunction) {
-    setDateFunction(date);
-  }
-};
-
-// GigPanel component
 function GigPanel({ gig, isLast, index }) {
   const gigNameRef = useRef(null);
   const panelRef = useRef(null);
@@ -133,7 +110,6 @@ function GigPanel({ gig, isLast, index }) {
   );
 }
 
-// TitleSlide component
 function TitleSlide({ date }) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -160,38 +136,29 @@ function TitleSlide({ date }) {
   );
 }
 
-// Main InstagramGallery component
-function InstagramGallery({ autoGenerate = false, autoDate = '' }) {
-  const [date, setDate] = useState(autoDate || '2024-11-30');
+function generateCaption(slideGigs, slideIndex, totalSlides, date) {
+  const formattedDate = new Date(date).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  let caption = `More information here: https://lml.live/?dateRange=today\n\n`;
+  caption += `🎵 Live Music Locator - ${formattedDate}\n`;
+  caption += `Slide ${slideIndex + 1} of ${totalSlides}\n\n`;
+  caption += slideGigs.map(gig => `🎤 ${gig.name} @ ${gig.venue.name} - ${gig.start_time}`).join('\n');
+
+  return caption;
+}
+
+function InstagramGallery() {
+  const [date, setDate] = useState('2024-11-30');
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [gigsLoaded, setGigsLoaded] = useState(false);
-  const [imagesGenerated, setImagesGenerated] = useState(false);
   const slideRefs = useRef([]);
 
-  // Set the setGigs and setDate functions for window.setGigs and window.setDate
-  useEffect(() => {
-    setGigsFunction = setGigs;
-    setDateFunction = setDate;
-    return () => {
-      setGigsFunction = null;
-      setDateFunction = null;
-    };
-  }, []);
-
-  // Automatically generate images if autoGenerate is true
-  useEffect(() => {
-    if (autoGenerate) {
-      fetchGigs().then(() => {
-        setTimeout(() => {
-          renderSlidesToImages();
-        }, 2000); // Wait for the UI to render
-      });
-    }
-  }, [autoGenerate]);
-
-  // Fetch gigs from the API
   const fetchGigs = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -199,11 +166,7 @@ function InstagramGallery({ autoGenerate = false, autoDate = '' }) {
       const response = await fetch(
         `https://api.lml.live/gigs/query?location=melbourne&date_from=${date}&date_to=${date}`
       );
-      if (!response.ok) {
-        throw new Error(`Failed to fetch gigs: ${response.statusText}`);
-      }
       const data = await response.json();
-      console.log('Fetched gigs:', data); // Log the fetched data
       const validGigs = data.map(gig => ({
         ...gig,
         start_time: gig.start_time || '23:59'
@@ -214,12 +177,14 @@ function InstagramGallery({ autoGenerate = false, autoDate = '' }) {
       setGigs(sortedGigs);
     } catch (err) {
       setError(err.message);
-      console.error('Error fetching gigs:', err);
     }
     setLoading(false);
   }, [date]);
-  
-  // Organize gigs into slides
+
+  useEffect(() => {
+    fetchGigs();
+  }, [fetchGigs]);
+
   const slides = useMemo(() => {
     const result = [];
     let currentSlide = [];
@@ -246,28 +211,65 @@ function InstagramGallery({ autoGenerate = false, autoDate = '' }) {
     return result;
   }, [gigs]);
 
-  // Render slides to images
   const renderSlidesToImages = async () => {
     try {
       let captions = [];
 
-      // Render the title slide
+      // Render the title slide first
       const titleSlide = document.querySelector('.title-slide');
       if (titleSlide) {
-        const dataUrl = await toPng(titleSlide);
+        const options = {
+          width: 1024,
+          height: 1024,
+          pixelRatio: 2,
+          backgroundColor: '#1a1a1a',
+          preserveAlpha: true,
+          quality: 1.0
+        };
+
+        const dataUrl = await toPng(titleSlide, options);
+
         const formattedDate = date.replace(/-/g, '');
         const filename = `gigs_${formattedDate}_carousel0.png`;
-        captions.push(`Title slide generated: ${filename}`);
+
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = filename;
+        link.click();
+
+        // Add title slide caption with the new description and link
+        const titleCaption = `Live Music Locator is a not-for-profit service designed to make it possible to discover every gig playing at every venue across every genre at any one time. 
+This information will always be verified and free, importantly supporting musicians, our small to medium live music venues, and you the punters.
+More detailed gig information here: https://lml.live/?dateRange=today`;
+        captions.push(titleCaption);
       }
 
       // Render the rest of the slides
       for (let i = 0; i < slideRefs.current.length; i++) {
         const slide = slideRefs.current[i];
         if (slide) {
-          const dataUrl = await toPng(slide);
+          const options = {
+            width: 1024,
+            height: 1024,
+            pixelRatio: 2,
+            backgroundColor: '#1a1a1a',
+            preserveAlpha: true,
+            quality: 1.0
+          };
+
+          const dataUrl = await toPng(slide, options);
+
           const formattedDate = date.replace(/-/g, '');
           const filename = `gigs_${formattedDate}_carousel${i + 1}.png`;
-          captions.push(`Slide ${i + 1} generated: ${filename}`);
+
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = filename;
+          link.click();
+
+          // Generate and add caption with the link
+          const caption = generateCaption(slides[i], i, slides.length, date);
+          captions.push(caption);
         }
       }
 
@@ -277,9 +279,6 @@ function InstagramGallery({ autoGenerate = false, autoDate = '' }) {
       captionsLink.href = URL.createObjectURL(captionsBlob);
       captionsLink.download = 'captions.txt';
       captionsLink.click();
-
-      setImagesGenerated(true); // Set imagesGenerated to true
-      console.log('Image generation complete:', captions);
     } catch (err) {
       console.error('Error rendering slides to images:', err);
     }
@@ -287,30 +286,28 @@ function InstagramGallery({ autoGenerate = false, autoDate = '' }) {
 
   return (
     <div className="min-h-screen bg-white p-8">
-      {/* Remove the date input and button if autoGenerate is true */}
-      {!autoGenerate && (
-        <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
-          <div className="flex items-center gap-4">
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="px-4 py-2 rounded bg-white text-gray-900 border border-gray-300"
-            />
-            <div className="text-gray-900">
-              {loading ? (
-                <span>Loading...</span>
-              ) : (
-                <span>{gigs.length} gigs found</span>
-              )}
-            </div>
+      <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
+        <div className="flex items-center gap-4">
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="px-4 py-2 rounded bg-white text-gray-900 border border-gray-300"
+          />
+          <div className="text-gray-900">
+            {loading ? (
+              <span>Loading...</span>
+            ) : (
+              <span>{gigs.length} gigs found</span>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-2 gap-8">
           <TitleSlide date={date} />
+          
           {slides.map((slideGigs, slideIndex) => (
             <div 
               key={slideIndex} 
@@ -341,16 +338,14 @@ function InstagramGallery({ autoGenerate = false, autoDate = '' }) {
         </div>
       </div>
 
-      {!autoGenerate && (
-        <div className="text-center mt-8">
-          <button
-            onClick={renderSlidesToImages}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Render Slides to Images
-          </button>
-        </div>
-      )}
+      <div className="text-center mt-8">
+        <button
+          onClick={renderSlidesToImages}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Render Slides to Images
+        </button>
+      </div>
 
       {error && (
         <div className="text-red-500 text-center mt-4">
