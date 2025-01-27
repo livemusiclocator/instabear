@@ -240,69 +240,76 @@ function InstagramGallery() {
     return result;
   }, [gigs]);
 
-  // Render slides to images
   const renderSlidesToImages = async () => {
     try {
       let captions = [];
-
-      // Render the title slide first
+  
+      // Render the title slide
       const titleSlide = document.querySelector('.title-slide');
       if (titleSlide) {
         const options = {
-          width: 1024,
-          height: 1024,
-          pixelRatio: 2,
-          backgroundColor: '#1a1a1a',
-          preserveAlpha: true,
-          quality: 1.0
+          width: 1024, // Set width to 1024px
+          height: 1024, // Set height to 1024px
+          backgroundColor: '#1a1a1a', // Background color
+          quality: 1.0, // Image quality
+          clip: {
+            x: 0, // Start from the top-left corner
+            y: 0,
+            width: 1024, // Capture exactly 1024px width
+            height: 1024 // Capture exactly 1024px height
+          }
         };
-
+  
         const dataUrl = await toPng(titleSlide, options);
-
+  
         const formattedDate = date.replace(/-/g, '');
         const filename = `gigs_${formattedDate}_carousel0.png`;
-
+  
         const link = document.createElement('a');
         link.href = dataUrl;
         link.download = filename;
         link.click();
-
+  
         // Add title slide caption with the new description and link
         const titleCaption = `Live Music Locator is a not-for-profit service designed to make it possible to discover every gig playing at every venue across every genre at any one time. 
-This information will always be verified and free, importantly supporting musicians, our small to medium live music venues, and you the punters.
-More detailed gig information here: https://lml.live/?dateRange=today`;
+  This information will always be verified and free, importantly supporting musicians, our small to medium live music venues, and you the punters.
+  More detailed gig information here: https://lml.live/?dateRange=today`;
         captions.push(titleCaption);
       }
-
+  
       // Render the rest of the slides
       for (let i = 0; i < slideRefs.current.length; i++) {
         const slide = slideRefs.current[i];
         if (slide) {
           const options = {
-            width: 1024,
-            height: 1024,
-            pixelRatio: 2,
-            backgroundColor: '#1a1a1a',
-            preserveAlpha: true,
-            quality: 1.0
+            width: 1024, // Set width to 1024px
+            height: 1024, // Set height to 1024px
+            backgroundColor: '#1a1a1a', // Background color
+            quality: 1.0, // Image quality
+            clip: {
+              x: 0, // Start from the top-left corner
+              y: 0,
+              width: 1024, // Capture exactly 1024px width
+              height: 1024 // Capture exactly 1024px height
+            }
           };
-
+  
           const dataUrl = await toPng(slide, options);
-
+  
           const formattedDate = date.replace(/-/g, '');
           const filename = `gigs_${formattedDate}_carousel${i + 1}.png`;
-
+  
           const link = document.createElement('a');
           link.href = dataUrl;
           link.download = filename;
           link.click();
-
+  
           // Generate and add caption with the link
           const caption = generateCaption(slides[i], i, slides.length, date);
           captions.push(caption);
         }
       }
-
+  
       // Save captions to captions.txt
       const captionsBlob = new Blob([captions.join('\n\n')], { type: 'text/plain' });
       const captionsLink = document.createElement('a');
