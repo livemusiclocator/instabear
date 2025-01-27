@@ -119,16 +119,16 @@ function TitleSlide({ date }) {
   });
 
   return (
-    <div className="title-slide w-[1024px] h-[1024px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-center">
-      <img src="/lml-logo.png" alt="Live Music Locator" className="w-64 h-64 mb-16" />
-      <div className="text-center px-16">
-        <h1 className="text-white text-6xl font-bold mb-8">
+    <div className="title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-center">
+      <img src="/lml-logo.png" alt="Live Music Locator" className="w-32 h-32 mb-8" />
+      <div className="text-center px-8">
+        <h1 className="text-white text-4xl font-bold mb-4">
           Fitzroy & Collingwood
         </h1>
-        <h2 className="text-white text-5xl mb-4">
+        <h2 className="text-white text-3xl mb-2">
           Gig Guide
         </h2>
-        <p className="text-4xl" style={{ color: BRAND_BLUE }}>
+        <p className="text-2xl" style={{ color: BRAND_BLUE }}>
           {toTitleCase(formattedDate)}
         </p>
       </div>
