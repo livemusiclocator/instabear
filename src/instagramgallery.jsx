@@ -221,12 +221,11 @@ function InstagramGallery() {
         const options = {
           width: 1024,
           height: 1024,
-          pixelRatio: 2,
+          pixelRatio: 1,
           backgroundColor: '#1a1a1a',
           preserveAlpha: true,
           quality: 1.0
         };
-
         const dataUrl = await toPng(titleSlide, options);
 
         const formattedDate = date.replace(/-/g, '');
@@ -249,14 +248,13 @@ More detailed gig information here: https://lml.live/?dateRange=today`;
         const slide = slideRefs.current[i];
         if (slide) {
           const options = {
-            width: 1024,
-            height: 1024,
-            pixelRatio: 2,
+            width: 540,
+            height: 540,
             backgroundColor: '#1a1a1a',
+            pixelRatio: 1.9,  // Roughly 1024/540
             preserveAlpha: true,
             quality: 1.0
           };
-
           const dataUrl = await toPng(slide, options);
 
           const formattedDate = date.replace(/-/g, '');
