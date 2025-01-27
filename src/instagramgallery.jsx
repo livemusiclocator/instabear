@@ -122,21 +122,19 @@ function TitleSlide({ date }) {
     <div className="title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-center">
       <img src="/lml-logo.png" alt="Live Music Locator" className="w-48 h-48 mb-12" />
       <div className="text-center px-12">
-        <h1 className="text-white text-5xl font-bold mb-6">
+        <h1 className="text-white text-6xl font-bold mb-6">
           Fitzroy & Collingwood
         </h1>
-        <h2 className="text-white text-4xl mb-4">
+        <h2 className="text-white text-5xl mb-4">
           Gig Guide
         </h2>
-        <p className="text-3xl" style={{ color: BRAND_BLUE }}>
+        <p className="text-4xl" style={{ color: BRAND_BLUE }}>
           {toTitleCase(formattedDate)}
         </p>
       </div>
     </div>
   );
  }
- 
-
 function generateCaption(slideGigs, slideIndex, totalSlides, date) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     weekday: 'long',
