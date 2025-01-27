@@ -135,21 +135,6 @@ function TitleSlide({ date }) {
     </div>
   );
  }
-function generateCaption(slideGigs, slideIndex, totalSlides, date) {
-  const formattedDate = new Date(date).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  });
-
-  let caption = `More information here: https://lml.live/?dateRange=today\n\n`;
-  caption += `🎵 Live Music Locator - ${formattedDate}\n`;
-  caption += `Slide ${slideIndex + 1} of ${totalSlides}\n\n`;
-  caption += slideGigs.map(gig => `🎤 ${gig.name} @ ${gig.venue.name} - ${gig.start_time}`).join('\n');
-
-  return caption;
-}
 
 function InstagramGallery() {
   const [date, setDate] = useState('2024-11-30');
