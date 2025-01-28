@@ -141,6 +141,7 @@ function TitleSlide({ date }) {
   );
  }
 
+ 
 function generateCaption(slideGigs, slideIndex, totalSlides, date) {
  const formattedDate = new Date(date).toLocaleDateString('en-US', {
    weekday: 'long',
