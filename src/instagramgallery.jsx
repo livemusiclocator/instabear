@@ -141,7 +141,7 @@ function TitleSlide({ date }) {
   );
  }
 
- 
+
 function generateCaption(slideGigs, slideIndex, totalSlides, date) {
  const formattedDate = new Date(date).toLocaleDateString('en-US', {
    weekday: 'long',
@@ -159,7 +159,8 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date) {
 }
 
 function InstagramGallery() {
- const [date, setDate] = useState('2024-11-30');
+ const today = new Date().toISOString().split('T')[0];
+ const [date] = useState(today);
  const [gigs, setGigs] = useState([]);
  const [loading, setLoading] = useState(true);
  const [error, setError] = useState(null);
@@ -229,7 +230,6 @@ function InstagramGallery() {
        quality: 1.0
      };
 
-     // Render the title slide first
      const titleSlide = document.querySelector('.title-slide');
      if (titleSlide) {
        const dataUrl = await toPng(titleSlide, options);
@@ -247,7 +247,6 @@ More detailed gig information here: https://lml.live/?dateRange=today`;
        captions.push(titleCaption);
      }
 
-     // Render the rest of the slides
      for (let i = 0; i < slideRefs.current.length; i++) {
        const slide = slideRefs.current[i];
        if (slide) {
@@ -265,7 +264,6 @@ More detailed gig information here: https://lml.live/?dateRange=today`;
        }
      }
 
-     // Save captions to captions.txt
      const captionsBlob = new Blob([captions.join('\n\n')], { type: 'text/plain' });
      const captionsLink = document.createElement('a');
      captionsLink.href = URL.createObjectURL(captionsBlob);
@@ -280,12 +278,6 @@ More detailed gig information here: https://lml.live/?dateRange=today`;
    <div className="min-h-screen bg-white p-8">
      <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
        <div className="flex items-center gap-4">
-         <input
-           type="date"
-           value={date}
-           onChange={(e) => setDate(e.target.value)}
-           className="px-4 py-2 rounded bg-white text-gray-900 border border-gray-300"
-         />
          <div className="text-gray-900">
            {loading ? (
              <span>Loading...</span>
