@@ -1,11 +1,10 @@
-iimport React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";  // Add this import
 
 const octokit = new Octokit({
-  auth: process.env.REACT_APP_GITHUB_TOKEN
+  auth: import.meta.env.VITE_GITHUB_TOKEN
 });
-
 // Add this function
 const uploadToGitHub = async (base64Image, filename) => {
   const content = base64Image.split(',')[1];
