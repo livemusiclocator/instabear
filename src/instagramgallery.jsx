@@ -1,5 +1,32 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+iimport React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { toPng } from 'html-to-image';
+import { Octokit } from "@octokit/rest";  // Add this import
+
+const octokit = new Octokit({
+  auth: process.env.REACT_APP_GITHUB_TOKEN
+});
+
+// Add this function
+const uploadToGitHub = async (base64Image, filename) => {
+  const content = base64Image.split(',')[1];
+  const path = `temp-images/${filename}`;
+  
+  try {
+    await octokit.rest.repos.createOrUpdateFileContents({
+      owner: 'livemusiclocator',
+      repo: 'instabear',
+      path,
+      message: `Add temporary image ${filename}`,
+      content,
+      branch: 'main'
+    });
+
+    return `https://livemusiclocator.github.io/instabear/${path}`;
+  } catch (error) {
+    console.error('GitHub upload failed:', error);
+    throw error;
+  }
+};
 
 const BRAND_BLUE = '#00B2E3';
 const BRAND_ORANGE = '#FF5C35';
@@ -219,59 +246,79 @@ function InstagramGallery() {
  }, [gigs]);
 
  const renderSlidesToImages = async () => {
-   try {
-     let captions = [];
-     const options = {
-       width: 540,
-       height: 540,
-       backgroundColor: '#1a1a1a',
-       pixelRatio: 1.9,
-       preserveAlpha: true,
-       quality: 1.0
-     };
-
-     const titleSlide = document.querySelector('.title-slide');
-     if (titleSlide) {
-       const dataUrl = await toPng(titleSlide, options);
-       const formattedDate = date.replace(/-/g, '');
-       const filename = `gigs_${formattedDate}_carousel0.png`;
-
-       const link = document.createElement('a');
-       link.href = dataUrl;
-       link.download = filename;
-       link.click();
-
-       const titleCaption = `Live Music Locator is a not-for-profit service designed to make it possible to discover every gig playing at every venue across every genre at any one time. 
-This information will always be verified and free, importantly supporting musicians, our small to medium live music venues, and you the punters.
-More detailed gig information here: https://lml.live/?dateRange=today`;
-       captions.push(titleCaption);
-     }
-
-     for (let i = 0; i < slideRefs.current.length; i++) {
-       const slide = slideRefs.current[i];
-       if (slide) {
-         const dataUrl = await toPng(slide, options);
-         const formattedDate = date.replace(/-/g, '');
-         const filename = `gigs_${formattedDate}_carousel${i + 1}.png`;
-
-         const link = document.createElement('a');
-         link.href = dataUrl;
-         link.download = filename;
-         link.click();
-
-         const caption = generateCaption(slides[i], i, slides.length, date);
-         captions.push(caption);
-       }
-     }
-
-     const captionsBlob = new Blob([captions.join('\n\n')], { type: 'text/plain' });
-     const captionsLink = document.createElement('a');
-     captionsLink.href = URL.createObjectURL(captionsBlob);
-     captionsLink.download = 'captions.txt';
-     captionsLink.click();
-   } catch (err) {
-     console.error('Error rendering slides to images:', err);
-   }
+  try {
+    let captions = [];
+    let imageUrls = [];
+    const options = {
+      width: 540,
+      height: 540,
+      backgroundColor: '#1a1a1a',
+      pixelRatio: 1.9,
+      preserveAlpha: true,
+      quality: 1.0
+    };
+ 
+    // Title slide
+    const titleSlide = document.querySelector('.title-slide');
+    if (titleSlide) {
+      const dataUrl = await toPng(titleSlide, options);
+      const formattedDate = date.replace(/-/g, '');
+      const filename = `gigs_${formattedDate}_carousel0.png`;
+ 
+      // Local download (keep for testing)
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = filename;
+      link.click();
+ 
+      // GitHub upload
+      const githubUrl = await uploadToGitHub(dataUrl, filename);
+      imageUrls.push(githubUrl);
+ 
+      const titleCaption = `Live Music Locator is a not-for-profit service designed to make it possible to discover every gig playing at every venue across every genre at any one time. 
+ This information will always be verified and free, importantly supporting musicians, our small to medium live music venues, and you the punters.
+ More detailed gig information here: https://lml.live/?dateRange=today`;
+      captions.push(titleCaption);
+    }
+ 
+    // Gig slides
+    for (let i = 0; i < slideRefs.current.length; i++) {
+      const slide = slideRefs.current[i];
+      if (slide) {
+        const dataUrl = await toPng(slide, options);
+        const formattedDate = date.replace(/-/g, '');
+        const filename = `gigs_${formattedDate}_carousel${i + 1}.png`;
+ 
+        // Local download (keep for testing)
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = filename;
+        link.click();
+ 
+        // GitHub upload
+        const githubUrl = await uploadToGitHub(dataUrl, filename);
+        imageUrls.push(githubUrl);
+ 
+        const caption = generateCaption(slides[i], i, slides.length, date);
+        captions.push(caption);
+      }
+    }
+ 
+    // Save captions
+    const captionsBlob = new Blob([captions.join('\n\n')], { type: 'text/plain' });
+    const captionsLink = document.createElement('a');
+    captionsLink.href = URL.createObjectURL(captionsBlob);
+    captionsLink.download = 'captions.txt';
+    captionsLink.click();
+ 
+    // Log URLs for testing
+    console.log('Uploaded Image URLs:', imageUrls);
+    return imageUrls;
+ 
+  } catch (err) {
+    console.error('Error rendering and uploading slides:', err);
+    throw err;
+  }
  };
 
  return (

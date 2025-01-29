@@ -16,6 +16,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@octokit/rest": "^21.1.0",
     "axios": "^1.7.9",
     "html-to-image": "^1.11.11",
     "jsdom": "^26.0.0",
