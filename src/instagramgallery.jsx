@@ -11,12 +11,28 @@ const uploadToGitHub = async (base64Image, filename) => {
   const path = `temp-images/${filename}`;
   
   try {
+    // First check if file exists
+    let sha;
+    try {
+      const { data } = await octokit.rest.repos.getContent({
+        owner: 'livemusiclocator',
+        repo: 'instabear',
+        path,
+        ref: 'main'
+      });
+      sha = data.sha;
+    } catch (error) {
+      // File doesn't exist yet, which is fine
+    }
+
+    // Create or update file
     await octokit.rest.repos.createOrUpdateFileContents({
       owner: 'livemusiclocator',
       repo: 'instabear',
       path,
       message: `Add temporary image ${filename}`,
       content,
+      ...(sha && { sha }), // Only include sha if file exists
       branch: 'main'
     });
 
