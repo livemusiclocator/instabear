@@ -200,6 +200,9 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date) {
  return caption;
 }
 
+
+
+
 function InstagramGallery() {
  const today = new Date().toISOString().split('T')[0];
  const [date] = useState(today);
@@ -207,6 +210,10 @@ function InstagramGallery() {
  const [loading, setLoading] = useState(true);
  const [error, setError] = useState(null);
  const slideRefs = useRef([]);
+ const [uploadedImages, setUploadedImages] = useState(null);
+ const [uploadStatus, setUploadStatus] = useState('');
+ const [isPosting, setIsPosting] = useState(false);
+
 
  const fetchGigs = useCallback(async () => {
    setLoading(true);
