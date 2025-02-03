@@ -15,33 +15,11 @@ async function postToInstagram(imageUrls, captions) {
 }
 
 
-// 3. Helper function that uploads an image to GitHub, returns the public URL
 const uploadToGitHub = async (base64Image, filename) => {
   const content = base64Image.split(',')[1];
   const path = `temp-images/${filename}`;
   
   try {
-    // Ensure temp-images directory exists
-    try {
-      await octokit.rest.repos.getContent({
-        owner: 'livemusiclocator',
-        repo: 'instabear',
-        path: 'temp-images',
-        ref: 'main'
-      });
-    } catch (error) {
-      if (error.status === 404) {
-        await octokit.rest.repos.createOrUpdateFileContents({
-          owner: 'livemusiclocator',
-          repo: 'instabear',
-          path: 'temp-images/.gitkeep',
-          message: 'Initialize temp-images directory',
-          content: '',
-          branch: 'main'
-        });
-      }
-    }
-
     // Check if file exists
     let sha;
     try {
@@ -67,10 +45,14 @@ const uploadToGitHub = async (base64Image, filename) => {
       branch: 'main'
     });
 
+    // Log the successful upload
     console.log('Upload successful:', result);
 
-    // Return the URL using lml.live domain
-    return `https://lml.live/instabear/${path}`;
+    // ALWAYS return the lml.live URL
+    const publicUrl = `https://lml.live/instabear/${path}`;
+    console.log('Generated public URL:', publicUrl);
+    return publicUrl;
+
   } catch (error) {
     console.error('GitHub upload failed:', error);
     throw new Error(`GitHub upload failed: ${error.message}`);
