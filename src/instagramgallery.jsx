@@ -14,6 +14,7 @@ async function postToInstagram(imageUrls, captions) {
   return { success: true };
 }
 
+
 // 3. Helper function that uploads an image to GitHub, returns the public URL
 const uploadToGitHub = async (base64Image, filename) => {
   const content = base64Image.split(',')[1];
