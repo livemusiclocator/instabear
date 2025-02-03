@@ -8,110 +8,87 @@ const octokit = new Octokit({
 });
 
 async function postToInstagram(imageUrls, captions) {
-  const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
-  const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.VITE_INSTAGRAM_BUSINESS_ID;
-
   try {
-    console.log('Starting Instagram post process with URLs:', imageUrls);
-
-    // Format the caption for the carousel
-    const date = new Date().toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      month: 'long', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
-    const numberOfGigs = imageUrls.length - 1; // Subtract 1 for title slide
-    const caption = captions[0]; // Use the first caption as the main carousel caption
-
-    // Validate caption length
-    if (caption.length > 2200) {
-      throw new Error('Caption exceeds Instagram\'s 2,200 character limit.');
+    const INSTAGRAM_ACCESS_TOKEN = import.meta.env.INSTAGRAM_ACCESS_TOKEN;
+    const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
+    
+    // Validate environment variables
+    if (!INSTAGRAM_ACCESS_TOKEN) {
+      throw new Error('Instagram access token is not configured');
+    }
+    if (!INSTAGRAM_BUSINESS_ACCOUNT_ID) {
+      throw new Error('Instagram business account ID is not configured');
     }
 
-    // Step 1: Upload each image and get media IDs
-    const mediaIds = [];
-    for (const imageUrl of imageUrls) {
-      console.log(`Uploading image: ${imageUrl}`);
+    console.log('Starting Instagram post with business ID:', INSTAGRAM_BUSINESS_ACCOUNT_ID);
+    
+    // Create media objects for each image
+    const mediaObjectPromises = imageUrls.map(async (url, index) => {
+      console.log(`Creating media object for image ${index + 1}:`, url);
+      
+      const params = new URLSearchParams({
+        image_url: url,
+        caption: captions[index],
+        access_token: INSTAGRAM_ACCESS_TOKEN,
+        is_carousel_item: 'true'
+      });
+
       const response = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image_url: imageUrl,
-          caption: caption,
-          access_token: INSTAGRAM_ACCESS_TOKEN,
-          is_carousel_item: true,
-        }),
+        body: params
       });
 
       const data = await response.json();
+      console.log(`Response for image ${index + 1}:`, data);
+
       if (!data.id) {
-        throw new Error(`Failed to upload image: ${imageUrl}. Response: ${JSON.stringify(data)}`);
+        throw new Error(`Failed to create media object for image ${index + 1}. Response: ${JSON.stringify(data)}`);
       }
+      
+      return data.id;
+    });
 
-      mediaIds.push(data.id);
-      console.log(`Image uploaded successfully. Media ID: ${data.id}`);
-    }
+    const mediaIds = await Promise.all(mediaObjectPromises);
+    console.log('Created media IDs:', mediaIds);
 
-    // Step 2: Create carousel container
-    console.log('Creating carousel container...');
+    // Create carousel container
     const carouselResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+      body: new URLSearchParams({
         media_type: 'CAROUSEL',
         children: mediaIds.join(','),
-        caption: caption,
-        access_token: INSTAGRAM_ACCESS_TOKEN,
-      }),
+        caption: captions[0],
+        access_token: INSTAGRAM_ACCESS_TOKEN
+      })
     });
 
     const carouselData = await carouselResponse.json();
+    console.log('Carousel container response:', carouselData);
+
     if (!carouselData.id) {
       throw new Error(`Failed to create carousel container. Response: ${JSON.stringify(carouselData)}`);
     }
 
-    const carouselContainerId = carouselData.id;
-    console.log(`Carousel container created successfully. Container ID: ${carouselContainerId}`);
-
-    // Step 3: Publish the carousel
-    console.log('Publishing carousel...');
+    // Publish carousel
     const publishResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        creation_id: carouselContainerId,
-        access_token: INSTAGRAM_ACCESS_TOKEN,
-      }),
+      body: new URLSearchParams({
+        creation_id: carouselData.id,
+        access_token: INSTAGRAM_ACCESS_TOKEN
+      })
     });
 
     const publishData = await publishResponse.json();
+    console.log('Publish response:', publishData);
+
     if (!publishData.id) {
       throw new Error(`Failed to publish carousel. Response: ${JSON.stringify(publishData)}`);
     }
 
-    console.log('Carousel posted successfully:', publishData);
     return { success: true, postId: publishData.id };
-
   } catch (error) {
-    console.error('Error posting carousel:', error.response?.data || error.message);
-    
-    // Handle DTSG errors
-    if (error.response?.data?.error?.code === 1357004) {
-      console.error('DTSG token error detected. Please check your access token and try again.');
-    }
-    
-    return { 
-      success: false, 
-      error: error.message,
-      details: error.response?.data || error 
-    };
+    console.error('Instagram posting failed:', error);
+    return { success: false, error: error.message };
   }
 }
 
