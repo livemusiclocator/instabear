@@ -20,6 +20,7 @@ const uploadToGitHub = async (base64Image, filename) => {
   const path = `temp-images/${filename}`;
   
   try {
+    
     // Check if file exists
     let sha;
     try {
