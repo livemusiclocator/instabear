@@ -21,7 +21,28 @@ const uploadToGitHub = async (base64Image, filename) => {
   const path = `temp-images/${filename}`;
   
   try {
-    // Check if the file already exists
+    // Ensure temp-images directory exists
+    try {
+      await octokit.rest.repos.getContent({
+        owner: 'livemusiclocator',
+        repo: 'instabear',
+        path: 'temp-images',
+        ref: 'main'
+      });
+    } catch (error) {
+      if (error.status === 404) {
+        await octokit.rest.repos.createOrUpdateFileContents({
+          owner: 'livemusiclocator',
+          repo: 'instabear',
+          path: 'temp-images/.gitkeep',
+          message: 'Initialize temp-images directory',
+          content: '',
+          branch: 'main'
+        });
+      }
+    }
+
+    // Check if file exists
     let sha;
     try {
       const { data } = await octokit.rest.repos.getContent({
@@ -32,24 +53,27 @@ const uploadToGitHub = async (base64Image, filename) => {
       });
       sha = data.sha;
     } catch (error) {
-      // File doesn’t exist yet
+      // File doesn't exist yet, that's fine
     }
 
-    // Create or update file
-    await octokit.rest.repos.createOrUpdateFileContents({
+    // Upload file
+    const result = await octokit.rest.repos.createOrUpdateFileContents({
       owner: 'livemusiclocator',
       repo: 'instabear',
       path,
       message: `Add temporary image ${filename}`,
       content,
-      ...(sha && { sha }), // Only include sha if file exists
+      ...(sha && { sha }),
       branch: 'main'
     });
 
-    return `https://livemusiclocator.github.io/instabear/${path}`;
+    console.log('Upload successful:', result);
+
+    // Return the URL using lml.live domain
+    return `https://lml.live/instabear/${path}`;
   } catch (error) {
     console.error('GitHub upload failed:', error);
-    throw error;
+    throw new Error(`GitHub upload failed: ${error.message}`);
   }
 };
 
