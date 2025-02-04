@@ -2,11 +2,12 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
 
-// 1. Instantiate Octokit with your token
+// Initialize Octokit
 const octokit = new Octokit({
   auth: import.meta.env.VITE_GITHUB_TOKEN
 });
 
+// Instagram posting function
 async function postToInstagram(imageUrls, captions) {
   try {
     const INSTAGRAM_ACCESS_TOKEN = import.meta.env.INSTAGRAM_ACCESS_TOKEN;
@@ -31,6 +32,41 @@ async function postToInstagram(imageUrls, captions) {
         caption: captions[index],
         access_token: INSTAGRAM_ACCESS_TOKEN,
         is_carousel_item: 'true'
+  console.log('Environment variables:', {
+    hasAccessToken: !!import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN,
+    hasBusinessId: !!import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID,
+  });
+
+  const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
+  const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
+
+  try {
+    console.log('Starting Instagram post process with URLs:', imageUrls);
+
+    if (!INSTAGRAM_ACCESS_TOKEN || !INSTAGRAM_BUSINESS_ACCOUNT_ID) {
+      throw new Error('Missing Instagram credentials');
+    }
+
+    // Step 1: Upload each image and get media IDs
+    const mediaIds = [];
+    for (const imageUrl of imageUrls) {
+      console.log(`Uploading image: ${imageUrl}`);
+      
+      // Added debug logging
+      console.log('Making request with:', {
+        url: `https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`,
+        params: {
+          image_url: imageUrl,
+          access_token: INSTAGRAM_ACCESS_TOKEN.substring(0, 10) + '...',
+          is_carousel_item: 'true'
+        }
+      });
+
+      const params = new URLSearchParams({
+        image_url: imageUrl,
+        access_token: INSTAGRAM_ACCESS_TOKEN,
+        is_carousel_item: 'true',
+        media_type: 'IMAGE'  // Added this line
       });
 
       const response = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
@@ -40,6 +76,7 @@ async function postToInstagram(imageUrls, captions) {
 
       const data = await response.json();
       console.log(`Response for image ${index + 1}:`, data);
+      console.log('Image upload response:', data);
 
       if (!data.id) {
         throw new Error(`Failed to create media object for image ${index + 1}. Response: ${JSON.stringify(data)}`);
@@ -60,6 +97,20 @@ async function postToInstagram(imageUrls, captions) {
         caption: captions[0],
         access_token: INSTAGRAM_ACCESS_TOKEN
       })
+    // Rest of the function remains the same...
+    // Step 2: Create carousel container
+    console.log('Creating carousel container with media IDs:', mediaIds);
+    
+    const carouselParams = new URLSearchParams({
+      media_type: 'CAROUSEL',
+      children: mediaIds.join(','),
+      caption: captions[0],
+      access_token: INSTAGRAM_ACCESS_TOKEN
+    });
+
+    const carouselResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
+      method: 'POST',
+      body: carouselParams
     });
 
     const carouselData = await carouselResponse.json();
@@ -76,6 +127,20 @@ async function postToInstagram(imageUrls, captions) {
         creation_id: carouselData.id,
         access_token: INSTAGRAM_ACCESS_TOKEN
       })
+    const carouselContainerId = carouselData.id;
+    console.log(`Carousel container created successfully. Container ID: ${carouselContainerId}`);
+
+    // Step 3: Publish the carousel
+    console.log('Publishing carousel...');
+    
+    const publishParams = new URLSearchParams({
+      creation_id: carouselContainerId,
+      access_token: INSTAGRAM_ACCESS_TOKEN
+    });
+
+    const publishResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish`, {
+      method: 'POST',
+      body: publishParams
     });
 
     const publishData = await publishResponse.json();
@@ -89,15 +154,21 @@ async function postToInstagram(imageUrls, captions) {
   } catch (error) {
     console.error('Instagram posting failed:', error);
     return { success: false, error: error.message };
+    console.error('Error posting carousel:', error);
+    return { 
+      success: false, 
+      error: error.message,
+      details: error.response?.data || error 
+    };
+>>>>>>> 48d2807 (insta auth is working from local)
   }
 }
-
+// GitHub upload function
 const uploadToGitHub = async (base64Image, filename) => {
   const content = base64Image.split(',')[1];
   const path = `temp-images/${filename}`;
   
   try {
-
     // Check if file exists
     let sha;
     try {
@@ -123,10 +194,7 @@ const uploadToGitHub = async (base64Image, filename) => {
       branch: 'main'
     });
 
-    // Log the successful upload
     console.log('Upload successful:', result);
-
-    // ALWAYS return the lml.live URL
     const publicUrl = `https://lml.live/instabear/${path}`;
     console.log('Generated public URL:', publicUrl);
     return publicUrl;
@@ -137,7 +205,7 @@ const uploadToGitHub = async (base64Image, filename) => {
   }
 };
 
-// 4. Constants for layout
+// Constants
 const BRAND_BLUE = '#00B2E3';
 const BRAND_ORANGE = '#FF5C35';
 const INSTAGRAM_HEIGHT = 540;
@@ -145,7 +213,7 @@ const HEADER_HEIGHT = 48;
 const MIN_BOTTOM_MARGIN = 24;
 const CONTAINER_HEIGHT = INSTAGRAM_HEIGHT - HEADER_HEIGHT - MIN_BOTTOM_MARGIN - 16;
 
-// 5. Utility functions
+// Utility functions
 function measureTextWidth(text, fontSize, fontWeight) {
   const measure = document.createElement('span');
   measure.style.cssText = `
@@ -183,7 +251,25 @@ function formatPrice(gig) {
   return '';
 }
 
-// 6. Reusable panel component for each gig
+// Caption generator
+function generateCaption(slideGigs, slideIndex, totalSlides, date) {
+  const formattedDate = new Date(date).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+
+  let caption = `More information here: https://lml.live/?dateRange=today\n\n`;
+  caption += `🎵 Live Music Locator - ${formattedDate}\n`;
+  caption += `Slide ${slideIndex + 1} of ${totalSlides}\n\n`;
+  caption += slideGigs
+    .map(gig => `🎤 ${gig.name} @ ${gig.venue.name} - ${gig.start_time}`)
+    .join('\n');
+
+  return caption;
+}
+// GigPanel Component
 function GigPanel({ gig, isLast }) {
   const gigNameRef = useRef(null);
   const panelRef = useRef(null);
@@ -253,7 +339,7 @@ function GigPanel({ gig, isLast }) {
   );
 }
 
-// 7. Title slide (first slide)
+// TitleSlide Component
 function TitleSlide({ date }) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -281,26 +367,7 @@ function TitleSlide({ date }) {
   );
 }
 
-// 8. Creates caption text for each carousel slide
-function generateCaption(slideGigs, slideIndex, totalSlides, date) {
-  const formattedDate = new Date(date).toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  });
-
-  let caption = `More information here: https://lml.live/?dateRange=today\n\n`;
-  caption += `🎵 Live Music Locator - ${formattedDate}\n`;
-  caption += `Slide ${slideIndex + 1} of ${totalSlides}\n\n`;
-  caption += slideGigs
-    .map(gig => `🎤 ${gig.name} @ ${gig.venue.name} - ${gig.start_time}`)
-    .join('\n');
-
-  return caption;
-}
-
-// 9. Main component
+// Main InstagramGallery Component
 export default function InstagramGallery() {
   // Basic state
   const today = new Date().toISOString().split('T')[0];
@@ -312,12 +379,12 @@ export default function InstagramGallery() {
   // Refs to each slide DOM element
   const slideRefs = useRef([]);
 
-  // 10. Additional state for uploading/posting
+  // Additional state for uploading/posting
   const [uploadedImages, setUploadedImages] = useState(null);
   const [uploadStatus, setUploadStatus] = useState('');
   const [isPosting, setIsPosting] = useState(false);
 
-  // 11. Fetch gigs
+  // Fetch gigs
   const fetchGigs = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -340,12 +407,11 @@ export default function InstagramGallery() {
     setLoading(false);
   }, [date]);
 
-  // 12. useEffect to fetch data on mount
   useEffect(() => {
     fetchGigs();
   }, [fetchGigs]);
 
-  // 13. Build slides: fill them until out of space, then start a new slide
+  // Build slides
   const slides = useMemo(() => {
     const result = [];
     let currentSlide = [];
@@ -372,7 +438,7 @@ export default function InstagramGallery() {
     return result;
   }, [gigs]);
 
-  // 14. Render slides, convert to images, and upload
+  // Render slides to images
   const renderSlidesToImages = async () => {
     setUploadStatus('Generating and uploading images...');
     try {
@@ -395,17 +461,9 @@ export default function InstagramGallery() {
         const formattedDate = date.replace(/-/g, '');
         const filename = `gigs_${formattedDate}_carousel0.png`;
 
-        // (Optional) Download locally
-        const link = document.createElement('a');
-        link.href = dataUrl;
-        link.download = filename;
-        link.click();
-
-        // Upload to GitHub
         const githubUrl = await uploadToGitHub(dataUrl, filename);
         imageUrls.push(githubUrl);
 
-        // Title slide caption
         const titleCaption = `Live Music Locator is a not-for-profit service designed to make it possible to discover every gig playing at every venue across every genre at any one time. 
 This information will always be verified and free, importantly supporting musicians, our small to medium live music venues, and you the punters.
 More detailed gig information here: https://lml.live/?dateRange=today`;
@@ -420,32 +478,15 @@ More detailed gig information here: https://lml.live/?dateRange=today`;
           const formattedDate = date.replace(/-/g, '');
           const filename = `gigs_${formattedDate}_carousel${i + 1}.png`;
 
-          // (Optional) Download locally
-          const link = document.createElement('a');
-          link.href = dataUrl;
-          link.download = filename;
-          link.click();
-
-          // Upload to GitHub
           const githubUrl = await uploadToGitHub(dataUrl, filename);
           imageUrls.push(githubUrl);
 
-          // Build caption for this slide
           const caption = generateCaption(slides[i], i, slides.length, date);
           captions.push(caption);
         }
       }
 
-      // (Optional) Save the captions locally in a text file
-      const captionsBlob = new Blob([captions.join('\n\n')], { type: 'text/plain' });
-      const captionsLink = document.createElement('a');
-      captionsLink.href = URL.createObjectURL(captionsBlob);
-      captionsLink.download = 'captions.txt';
-      captionsLink.click();
-
       console.log('Uploaded Image URLs:', imageUrls);
-
-      // Keep track so we can post to Instagram
       setUploadedImages({ urls: imageUrls, captions });
       setUploadStatus('Images ready for Instagram posting');
 
@@ -457,7 +498,7 @@ More detailed gig information here: https://lml.live/?dateRange=today`;
     }
   };
 
-  // 15. Handle actual Instagram post
+  // Handle Instagram posting
   const handleInstagramPost = async () => {
     if (!uploadedImages) return;
 
@@ -473,7 +514,7 @@ More detailed gig information here: https://lml.live/?dateRange=today`;
       if (result.success) {
         setUploadStatus('Successfully posted to Instagram!');
       } else {
-        setUploadStatus('Instagram posting failed: unknown error');
+        setUploadStatus(`Instagram posting failed: ${result.error}`);
       }
     } catch (err) {
       setUploadStatus(`Instagram posting failed: ${err.message}`);
@@ -482,7 +523,7 @@ More detailed gig information here: https://lml.live/?dateRange=today`;
     }
   };
 
-  // 16. Render UI
+  // Render UI
   return (
     <div className="min-h-screen bg-white p-8">
       <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
