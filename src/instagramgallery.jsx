@@ -9,29 +9,6 @@ const octokit = new Octokit({
 
 // Instagram posting function
 async function postToInstagram(imageUrls, captions) {
-  try {
-    const INSTAGRAM_ACCESS_TOKEN = import.meta.env.INSTAGRAM_ACCESS_TOKEN;
-    const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
-    
-    // Validate environment variables
-    if (!INSTAGRAM_ACCESS_TOKEN) {
-      throw new Error('Instagram access token is not configured');
-    }
-    if (!INSTAGRAM_BUSINESS_ACCOUNT_ID) {
-      throw new Error('Instagram business account ID is not configured');
-    }
-
-    console.log('Starting Instagram post with business ID:', INSTAGRAM_BUSINESS_ACCOUNT_ID);
-    
-    // Create media objects for each image
-    const mediaObjectPromises = imageUrls.map(async (url, index) => {
-      console.log(`Creating media object for image ${index + 1}:`, url);
-      
-      const params = new URLSearchParams({
-        image_url: url,
-        caption: captions[index],
-        access_token: INSTAGRAM_ACCESS_TOKEN,
-        is_carousel_item: 'true'
   console.log('Environment variables:', {
     hasAccessToken: !!import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN,
     hasBusinessId: !!import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID,
@@ -52,21 +29,11 @@ async function postToInstagram(imageUrls, captions) {
     for (const imageUrl of imageUrls) {
       console.log(`Uploading image: ${imageUrl}`);
       
-      // Added debug logging
-      console.log('Making request with:', {
-        url: `https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`,
-        params: {
-          image_url: imageUrl,
-          access_token: INSTAGRAM_ACCESS_TOKEN.substring(0, 10) + '...',
-          is_carousel_item: 'true'
-        }
-      });
-
       const params = new URLSearchParams({
         image_url: imageUrl,
         access_token: INSTAGRAM_ACCESS_TOKEN,
         is_carousel_item: 'true',
-        media_type: 'IMAGE'  // Added this line
+        media_type: 'IMAGE'
       });
 
       const response = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
@@ -75,29 +42,19 @@ async function postToInstagram(imageUrls, captions) {
       });
 
       const data = await response.json();
-      console.log(`Response for image ${index + 1}:`, data);
       console.log('Image upload response:', data);
 
       if (!data.id) {
-        throw new Error(`Failed to create media object for image ${index + 1}. Response: ${JSON.stringify(data)}`);
+        throw new Error(`Failed to upload image: ${imageUrl}. Response: ${JSON.stringify(data)}`);
       }
+
+      mediaIds.push(data.id);
+      console.log(`Image uploaded successfully. Media ID: ${data.id}`);
       
-      return data.id;
-    });
+      // Small delay between uploads
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
 
-    const mediaIds = await Promise.all(mediaObjectPromises);
-    console.log('Created media IDs:', mediaIds);
-
-    // Create carousel container
-    const carouselResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
-      method: 'POST',
-      body: new URLSearchParams({
-        media_type: 'CAROUSEL',
-        children: mediaIds.join(','),
-        caption: captions[0],
-        access_token: INSTAGRAM_ACCESS_TOKEN
-      })
-    // Rest of the function remains the same...
     // Step 2: Create carousel container
     console.log('Creating carousel container with media IDs:', mediaIds);
     
@@ -120,13 +77,6 @@ async function postToInstagram(imageUrls, captions) {
       throw new Error(`Failed to create carousel container. Response: ${JSON.stringify(carouselData)}`);
     }
 
-    // Publish carousel
-    const publishResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish`, {
-      method: 'POST',
-      body: new URLSearchParams({
-        creation_id: carouselData.id,
-        access_token: INSTAGRAM_ACCESS_TOKEN
-      })
     const carouselContainerId = carouselData.id;
     console.log(`Carousel container created successfully. Container ID: ${carouselContainerId}`);
 
@@ -150,19 +100,19 @@ async function postToInstagram(imageUrls, captions) {
       throw new Error(`Failed to publish carousel. Response: ${JSON.stringify(publishData)}`);
     }
 
+    console.log('Carousel posted successfully:', publishData);
     return { success: true, postId: publishData.id };
+
   } catch (error) {
-    console.error('Instagram posting failed:', error);
-    return { success: false, error: error.message };
     console.error('Error posting carousel:', error);
     return { 
       success: false, 
       error: error.message,
       details: error.response?.data || error 
     };
->>>>>>> 48d2807 (insta auth is working from local)
   }
 }
+
 // GitHub upload function
 const uploadToGitHub = async (base64Image, filename) => {
   const content = base64Image.split(',')[1];
@@ -269,6 +219,7 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date) {
 
   return caption;
 }
+
 // GigPanel Component
 function GigPanel({ gig, isLast }) {
   const gigNameRef = useRef(null);
@@ -465,151 +416,150 @@ export default function InstagramGallery() {
         imageUrls.push(githubUrl);
 
         const titleCaption = `Live Music Locator is a not-for-profit service designed to make it possible to discover every gig playing at every venue across every genre at any one time. 
-This information will always be verified and free, importantly supporting musicians, our small to medium live music venues, and you the punters.
-More detailed gig information here: https://lml.live/?dateRange=today`;
-        captions.push(titleCaption);
-      }
-
-      // Gig slides
-      for (let i = 0; i < slideRefs.current.length; i++) {
-        const slide = slideRefs.current[i];
-        if (slide) {
-          const dataUrl = await toPng(slide, options);
-          const formattedDate = date.replace(/-/g, '');
-          const filename = `gigs_${formattedDate}_carousel${i + 1}.png`;
-
-          const githubUrl = await uploadToGitHub(dataUrl, filename);
-          imageUrls.push(githubUrl);
-
-          const caption = generateCaption(slides[i], i, slides.length, date);
-          captions.push(caption);
-        }
-      }
-
-      console.log('Uploaded Image URLs:', imageUrls);
-      setUploadedImages({ urls: imageUrls, captions });
-      setUploadStatus('Images ready for Instagram posting');
-
-      return imageUrls;
-    } catch (err) {
-      console.error('Error rendering and uploading slides:', err);
-      setUploadStatus(`Error: ${err.message}`);
-      throw err;
-    }
-  };
-
-  // Handle Instagram posting
-  const handleInstagramPost = async () => {
-    if (!uploadedImages) return;
-
-    if (!confirm('Are you sure you want to post this to Instagram? This action cannot be undone.')) {
-      return;
-    }
-
-    setIsPosting(true);
-    setUploadStatus('Posting to Instagram...');
-
-    try {
-      const result = await postToInstagram(uploadedImages.urls, uploadedImages.captions);
-      if (result.success) {
-        setUploadStatus('Successfully posted to Instagram!');
-      } else {
-        setUploadStatus(`Instagram posting failed: ${result.error}`);
-      }
-    } catch (err) {
-      setUploadStatus(`Instagram posting failed: ${err.message}`);
-    } finally {
-      setIsPosting(false);
-    }
-  };
-
-  // Render UI
-  return (
-    <div className="min-h-screen bg-white p-8">
-      <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
-        <div className="flex items-center gap-4">
-          <div className="text-gray-900">
-            {loading ? (
-              <span>Loading...</span>
-            ) : (
-              <span>{gigs.length} gigs found</span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto">
-        <div className="grid grid-cols-2 gap-8">
-          {/* Title slide */}
-          <TitleSlide date={date} />
-
-          {/* Gig slides */}
-          {slides.map((slideGigs, slideIndex) => (
-            <div
-              key={slideIndex}
-              ref={(el) => (slideRefs.current[slideIndex] = el)}
-              className="w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative"
-            >
-              <div className="h-12 px-4 flex items-center justify-between border-b border-gray-700">
-                <h2 className="text-white text-2xl font-bold">
-                  {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
-                </h2>
-                <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">
-                  {slideIndex + 1} / {slides.length}
-                </p>
+        This information will always be verified and free, importantly supporting musicians, our small to medium live music venues, and you the punters.
+        More detailed gig information here: https://lml.live/?dateRange=today`;
+                captions.push(titleCaption);
+              }
+        
+              // Gig slides
+              for (let i = 0; i < slideRefs.current.length; i++) {
+                const slide = slideRefs.current[i];
+                if (slide) {
+                  const dataUrl = await toPng(slide, options);
+                  const formattedDate = date.replace(/-/g, '');
+                  const filename = `gigs_${formattedDate}_carousel${i + 1}.png`;
+        
+                  const githubUrl = await uploadToGitHub(dataUrl, filename);
+                  imageUrls.push(githubUrl);
+        
+                  const caption = generateCaption(slides[i], i, slides.length, date);
+                  captions.push(caption);
+                }
+              }
+        
+              console.log('Uploaded Image URLs:', imageUrls);
+              setUploadedImages({ urls: imageUrls, captions });
+              setUploadStatus('Images ready for Instagram posting');
+        
+              return imageUrls;
+            } catch (err) {
+              console.error('Error rendering and uploading slides:', err);
+              setUploadStatus(`Error: ${err.message}`);
+              throw err;
+            }
+          };
+        
+          // Handle Instagram posting
+          const handleInstagramPost = async () => {
+            if (!uploadedImages) return;
+        
+            if (!confirm('Are you sure you want to post this to Instagram? This action cannot be undone.')) {
+              return;
+            }
+        
+            setIsPosting(true);
+            setUploadStatus('Posting to Instagram...');
+        
+            try {
+              const result = await postToInstagram(uploadedImages.urls, uploadedImages.captions);
+              if (result.success) {
+                setUploadStatus('Successfully posted to Instagram!');
+              } else {
+                setUploadStatus(`Instagram posting failed: ${result.error}`);
+              }
+            } catch (err) {
+              setUploadStatus(`Instagram posting failed: ${err.message}`);
+            } finally {
+              setIsPosting(false);
+            }
+          };
+        
+          return (
+            <div className="min-h-screen bg-white p-8">
+              <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="text-gray-900">
+                    {loading ? (
+                      <span>Loading...</span>
+                    ) : (
+                      <span>{gigs.length} gigs found</span>
+                    )}
+                  </div>
+                </div>
               </div>
-
-              <div className="px-3 py-2 relative h-[476px]">
-                {slideGigs.map((gig, index) => (
-                  <GigPanel
-                    key={index}
-                    gig={gig}
-                    isLast={index === slideGigs.length - 1}
-                  />
-                ))}
+        
+              <div className="max-w-7xl mx-auto">
+                <div className="grid grid-cols-2 gap-8">
+                  {/* Title slide */}
+                  <TitleSlide date={date} />
+        
+                  {/* Gig slides */}
+                  {slides.map((slideGigs, slideIndex) => (
+                    <div
+                      key={slideIndex}
+                      ref={(el) => (slideRefs.current[slideIndex] = el)}
+                      className="w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative"
+                    >
+                      <div className="h-12 px-4 flex items-center justify-between border-b border-gray-700">
+                        <h2 className="text-white text-2xl font-bold">
+                          {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
+                        </h2>
+                        <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">
+                          {slideIndex + 1} / {slides.length}
+                        </p>
+                      </div>
+        
+                      <div className="px-3 py-2 relative h-[476px]">
+                        {slideGigs.map((gig, index) => (
+                          <GigPanel
+                            key={index}
+                            gig={gig}
+                            isLast={index === slideGigs.length - 1}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
+        
+              {/* Actions and status */}
+              <div className="text-center mt-8 space-y-4">
+                <button
+                  onClick={renderSlidesToImages}
+                  disabled={isPosting}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Generate Images
+                </button>
+        
+                {uploadedImages && (
+                  <div>
+                    <button
+                      onClick={handleInstagramPost}
+                      disabled={isPosting}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      Post to Instagram
+                    </button>
+                    <p className="text-sm text-gray-600 mt-2">
+                      Review the images above before posting
+                    </p>
+                  </div>
+                )}
+        
+                {uploadStatus && (
+                  <div className="text-sm text-gray-600">
+                    {uploadStatus}
+                  </div>
+                )}
+              </div>
+        
+              {error && (
+                <div className="text-red-500 text-center mt-4">
+                  Error: {error}
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Actions and status */}
-      <div className="text-center mt-8 space-y-4">
-        <button
-          onClick={renderSlidesToImages}
-          disabled={isPosting}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Generate Images
-        </button>
-
-        {uploadedImages && (
-          <div>
-            <button
-              onClick={handleInstagramPost}
-              disabled={isPosting}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              Post to Instagram
-            </button>
-            <p className="text-sm text-gray-600 mt-2">
-              Review the images above before posting
-            </p>
-          </div>
-        )}
-
-        {uploadStatus && (
-          <div className="text-sm text-gray-600">
-            {uploadStatus}
-          </div>
-        )}
-      </div>
-
-      {error && (
-        <div className="text-red-500 text-center mt-4">
-          Error: {error}
-        </div>
-      )}
-    </div>
-  );
-}
+          );
+        }
