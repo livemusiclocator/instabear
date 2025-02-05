@@ -7,46 +7,33 @@ const octokit = new Octokit({
   auth: import.meta.env.VITE_GITHUB_TOKEN
 });
 
+const getMelbourneDate = () => {
+  return new Date().toLocaleDateString('en-AU', { 
+    timeZone: 'Australia/Melbourne',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).split('/').reverse().join('-');
+};
+
+// Instagram posting function
 async function postToInstagram(imageUrls, captions) {
+  console.log('Environment variables:', {
+    hasAccessToken: !!import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN,
+    hasBusinessId: !!import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID,
+  });
+
   const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
   const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
 
   try {
-    // First, verify we can access the Instagram account
-    console.log('Testing Instagram API access...');
-    const accountResponse = await fetch(
-      `https://graph.facebook.com/v22.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}?fields=name,username&access_token=${INSTAGRAM_ACCESS_TOKEN}`
-    );
-    const accountData = await accountResponse.json();
-    console.log('Instagram account check:', accountData);
+    console.log('Starting Instagram post process with URLs:', imageUrls);
 
-    if (accountData.error) {
-      throw new Error(`Instagram account verification failed: ${JSON.stringify(accountData.error)}`);
+    if (!INSTAGRAM_ACCESS_TOKEN || !INSTAGRAM_BUSINESS_ACCOUNT_ID) {
+      throw new Error('Missing Instagram credentials');
     }
 
-    console.log(`Connected to Instagram account: ${accountData.username}`);
-
-    // Now try to create a single media object first
-    const testParams = new URLSearchParams({
-      access_token: INSTAGRAM_ACCESS_TOKEN,
-      image_url: imageUrls[0],
-      media_type: 'IMAGE',
-      caption: 'Test post'
-    });
-
-    console.log('Testing single media upload...');
-    const testResponse = await fetch(`https://graph.facebook.com/v22.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
-      method: 'POST',
-      body: testParams
-    });
-
-    const testData = await testResponse.json();
-    console.log('Test media upload response:', testData);
-
-    if (testData.error) {
-      throw new Error(`Test media upload failed: ${JSON.stringify(testData.error)}`);
-    }
-
+    
     // Step 1: Upload each image and get media IDs
     const mediaIds = [];
     for (const imageUrl of imageUrls) {
@@ -59,7 +46,7 @@ async function postToInstagram(imageUrls, captions) {
         media_type: 'IMAGE'
       });
 
-      const response = await fetch(`https://graph.facebook.com/v22.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
+      const response = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
         method: 'POST',
         body: params
       });
@@ -88,7 +75,7 @@ async function postToInstagram(imageUrls, captions) {
       access_token: INSTAGRAM_ACCESS_TOKEN
     });
 
-    const carouselResponse = await fetch(`https://graph.facebook.com/v22.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
+    const carouselResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
       method: 'POST',
       body: carouselParams
     });
@@ -111,7 +98,7 @@ async function postToInstagram(imageUrls, captions) {
       access_token: INSTAGRAM_ACCESS_TOKEN
     });
 
-    const publishResponse = await fetch(`https://graph.facebook.com/v22.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish`, {
+    const publishResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish`, {
       method: 'POST',
       body: publishParams
     });
@@ -135,6 +122,7 @@ async function postToInstagram(imageUrls, captions) {
     };
   }
 }
+
 // GitHub upload function
 const uploadToGitHub = async (base64Image, filename) => {
   const content = base64Image.split(',')[1];
@@ -343,73 +331,86 @@ function TitleSlide({ date }) {
 // Main InstagramGallery Component
 export default function InstagramGallery() {
   // Basic state
-  const today = new Date().toISOString().split('T')[0];
-  const [date] = useState(today);
+  const [date, setDate] = useState(getMelbourneDate());
   const [gigs, setGigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Refs to each slide DOM element
-  const slideRefs = useRef([]);
+// Fetch gigs
+const fetchGigs = useCallback(async (selectedDate) => {
+  setLoading(true);
+  setError(null);
+  try {
+    console.log(`Fetching gigs for ${selectedDate}...`);
+    const response = await fetch(
+      `https://api.lml.live/gigs/query?location=melbourne&date_from=${selectedDate}&date_to=${selectedDate}`
 
-  // Additional state for uploading/posting
-  const [uploadedImages, setUploadedImages] = useState(null);
-  const [uploadStatus, setUploadStatus] = useState('');
-  const [isPosting, setIsPosting] = useState(false);
+    );
+    console.log(`API URL: https://api.lml.live/gigs/query?location=melbourne&date_from=${selectedDate}&date_to=${selectedDate}`);
 
-  // Fetch gigs
-  const fetchGigs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(
-        `https://api.lml.live/gigs/query?location=melbourne&date_from=${date}&date_to=${date}`
-      );
-      const data = await response.json();
-      const validGigs = data.map(gig => ({
-        ...gig,
-        start_time: gig.start_time || '23:59'
-      }));
-      const sortedGigs = validGigs.sort((a, b) =>
-        a.start_time.localeCompare(b.start_time)
-      );
-      setGigs(sortedGigs);
-    } catch (err) {
-      setError(err.message);
+
+    const data = await response.json();
+    const validGigs = data.map(gig => ({
+      ...gig,
+      start_time: gig.start_time || '23:59'
+    }));
+    const sortedGigs = validGigs.sort((a, b) =>
+      a.start_time.localeCompare(b.start_time)
+    );
+    setGigs(sortedGigs);
+  } catch (err) {
+    setError(err.message);
+  }
+  setLoading(false);
+}, []);
+
+useEffect(() => {
+  fetchGigs(date);
+
+  const interval = setInterval(() => {
+    const newDate = getMelbourneDate();
+    if (newDate !== date) {
+      setDate(newDate);
+      fetchGigs(newDate);
     }
-    setLoading(false);
-  }, [date]);
+  }, 60000);
 
-  useEffect(() => {
-    fetchGigs();
-  }, [fetchGigs]);
+  return () => clearInterval(interval);
+}, [date, fetchGigs]);
+// Refs to each slide DOM element
+const slideRefs = useRef([]);
 
-  // Build slides
-  const slides = useMemo(() => {
-    const result = [];
-    let currentSlide = [];
-    let currentHeight = 0;
+// Additional state for uploading/posting
+const [uploadedImages, setUploadedImages] = useState(null);
+const [uploadStatus, setUploadStatus] = useState('');
+const [isPosting, setIsPosting] = useState(false);
 
-    gigs.forEach(gig => {
-      const nameLines = Math.ceil(gig.name.length / 35);
-      const gigHeight = 64 + (nameLines - 1) * 24 + 8;
+// Build slides
+const slides = useMemo(() => {
+  const result = [];
+  let currentSlide = [];
+  let currentHeight = 0;
 
-      if (currentHeight + gigHeight > CONTAINER_HEIGHT) {
-        result.push(currentSlide);
-        currentSlide = [gig];
-        currentHeight = gigHeight;
-      } else {
-        currentSlide.push(gig);
-        currentHeight += gigHeight;
-      }
-    });
+  gigs.forEach(gig => {
+    const nameLines = Math.ceil(gig.name.length / 35);
+    const gigHeight = 64 + (nameLines - 1) * 24 + 8;
 
-    if (currentSlide.length > 0) {
+    if (currentHeight + gigHeight > CONTAINER_HEIGHT) {
       result.push(currentSlide);
+      currentSlide = [gig];
+      currentHeight = gigHeight;
+    } else {
+      currentSlide.push(gig);
+      currentHeight += gigHeight;
     }
+  });
 
-    return result;
-  }, [gigs]);
+  if (currentSlide.length > 0) {
+    result.push(currentSlide);
+  }
+
+  return result;
+}, [gigs]);
 
   // Render slides to images
   const renderSlidesToImages = async () => {
@@ -470,31 +471,69 @@ export default function InstagramGallery() {
               throw err;
             }
           };
-        
-          // Handle Instagram posting
+
+          const sendSlackNotification = async (message) => {
+            const SLACK_WEBHOOK_URL = import.meta.env.VITE_SLACK_WEBHOOK_URL;
+          
+            if (!SLACK_WEBHOOK_URL) {
+              console.error('Slack webhook URL is missing. Check your .env file.');
+              return;
+            }
+          
+            const payload = { text: message };
+          
+            try {
+              const response = await fetch(SLACK_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+              });
+          
+              if (!response.ok) {
+                throw new Error(`Slack API responded with ${response.status}`);
+              }
+          
+              console.log('Slack notification sent successfully.');
+            } catch (error) {
+              console.error('Failed to send Slack notification:', error);
+            }
+          };
+          
+              
           const handleInstagramPost = async () => {
             if (!uploadedImages) return;
-        
+          
             if (!confirm('Are you sure you want to post this to Instagram? This action cannot be undone.')) {
               return;
             }
-        
+          
             setIsPosting(true);
             setUploadStatus('Posting to Instagram...');
-        
+          
             try {
               const result = await postToInstagram(uploadedImages.urls, uploadedImages.captions);
               if (result.success) {
                 setUploadStatus('Successfully posted to Instagram!');
+          
+                // ✅ Send Slack success notification
+                const instagramPostUrl = `https://www.instagram.com/${import.meta.env.VITE_INSTAGRAM_USERNAME}`;
+                await sendSlackNotification(`🎉 *Success!* The daily gig guide was posted to Instagram.\n📌 [View Post](${instagramPostUrl})`);
               } else {
                 setUploadStatus(`Instagram posting failed: ${result.error}`);
+          
+                // ❌ Send Slack failure notification
+                await sendSlackNotification(`❌ *Failed to post to Instagram.*\nError: ${result.error}`);
               }
             } catch (err) {
               setUploadStatus(`Instagram posting failed: ${err.message}`);
+          
+              // ❌ Send Slack failure notification
+              await sendSlackNotification(`❌ *Instagram posting failed.*\nError: ${err.message}`);
             } finally {
               setIsPosting(false);
             }
           };
+          
         
           return (
             <div className="min-h-screen bg-white p-8">
