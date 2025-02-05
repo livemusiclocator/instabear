@@ -7,21 +7,44 @@ const octokit = new Octokit({
   auth: import.meta.env.VITE_GITHUB_TOKEN
 });
 
-// Instagram posting function
 async function postToInstagram(imageUrls, captions) {
-  console.log('Environment variables:', {
-    hasAccessToken: !!import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN,
-    hasBusinessId: !!import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID,
-  });
-
   const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
   const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
 
   try {
-    console.log('Starting Instagram post process with URLs:', imageUrls);
+    // First, verify we can access the Instagram account
+    console.log('Testing Instagram API access...');
+    const accountResponse = await fetch(
+      `https://graph.facebook.com/v22.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}?fields=name,username&access_token=${INSTAGRAM_ACCESS_TOKEN}`
+    );
+    const accountData = await accountResponse.json();
+    console.log('Instagram account check:', accountData);
 
-    if (!INSTAGRAM_ACCESS_TOKEN || !INSTAGRAM_BUSINESS_ACCOUNT_ID) {
-      throw new Error('Missing Instagram credentials');
+    if (accountData.error) {
+      throw new Error(`Instagram account verification failed: ${JSON.stringify(accountData.error)}`);
+    }
+
+    console.log(`Connected to Instagram account: ${accountData.username}`);
+
+    // Now try to create a single media object first
+    const testParams = new URLSearchParams({
+      access_token: INSTAGRAM_ACCESS_TOKEN,
+      image_url: imageUrls[0],
+      media_type: 'IMAGE',
+      caption: 'Test post'
+    });
+
+    console.log('Testing single media upload...');
+    const testResponse = await fetch(`https://graph.facebook.com/v22.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
+      method: 'POST',
+      body: testParams
+    });
+
+    const testData = await testResponse.json();
+    console.log('Test media upload response:', testData);
+
+    if (testData.error) {
+      throw new Error(`Test media upload failed: ${JSON.stringify(testData.error)}`);
     }
 
     // Step 1: Upload each image and get media IDs
@@ -36,7 +59,7 @@ async function postToInstagram(imageUrls, captions) {
         media_type: 'IMAGE'
       });
 
-      const response = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
+      const response = await fetch(`https://graph.facebook.com/v22.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
         method: 'POST',
         body: params
       });
@@ -65,7 +88,7 @@ async function postToInstagram(imageUrls, captions) {
       access_token: INSTAGRAM_ACCESS_TOKEN
     });
 
-    const carouselResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
+    const carouselResponse = await fetch(`https://graph.facebook.com/v22.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`, {
       method: 'POST',
       body: carouselParams
     });
@@ -88,7 +111,7 @@ async function postToInstagram(imageUrls, captions) {
       access_token: INSTAGRAM_ACCESS_TOKEN
     });
 
-    const publishResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish`, {
+    const publishResponse = await fetch(`https://graph.facebook.com/v22.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish`, {
       method: 'POST',
       body: publishParams
     });
@@ -112,7 +135,6 @@ async function postToInstagram(imageUrls, captions) {
     };
   }
 }
-
 // GitHub upload function
 const uploadToGitHub = async (base64Image, filename) => {
   const content = base64Image.split(',')[1];
