@@ -1,9 +1,10 @@
+// .github/workflows/deploy.yml
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [ main ]  # or your default branch
-  workflow_dispatch:    # Allow manual triggers
+    branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -27,13 +28,14 @@ jobs:
         
       - name: Build project
         run: npm run build
+        env:
+          VITE_BASE_URL: '.'  # Ensure environment variable for base URL is set
         
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-          
   deploy:
     needs: build
     runs-on: ubuntu-latest
