@@ -2,13 +2,15 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// Define whether we're in GitHub Pages environment
+const isGitHubPages = process.env.GITHUB_PAGES === 'true'
+
 export default defineConfig({
   plugins: [react()],
-  base: './',  // Changed from '/instabear/' to './' for relative paths
+  base: isGitHubPages ? '/instabear/' : '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    // Ensure assets use relative paths
     rollupOptions: {
       output: {
         assetFileNames: (assetInfo) => {
@@ -17,7 +19,7 @@ export default defineConfig({
           return `assets/${info[0]}.[hash].${ext}`
         },
         chunkFileNames: 'assets/[name].[hash].js',
-        entryFileNames: '[name].[hash].js',
+        entryFileNames: '[name].[hash].js'
       }
     }
   }

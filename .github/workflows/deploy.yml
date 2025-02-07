@@ -29,7 +29,9 @@ jobs:
       - name: Build project
         run: npm run build
         env:
-          VITE_BASE_URL: '.'  # Ensure environment variable for base URL is set
+          GITHUB_PAGES: 'true'
+          # Ensure we never reference lml.live
+          VITE_API_BASE_URL: 'https://livemusiclocator.github.io/instabear'
         
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
