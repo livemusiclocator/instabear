@@ -1,23 +1,20 @@
-// vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  // Force all paths to be under /instabear/
-  base: 'https://livemusiclocator.github.io/instabear/',
+  base: '/instabear/',  // Relative path for GitHub Pages
   build: {
     outDir: 'dist',
-    assetsDir: '',  // Keep assets in root to maintain paths
+    assetsDir: 'assets',
     rollupOptions: {
       input: {
         main: './index.html'
       },
       output: {
-        // Ensure all assets stay in the root
-        entryFileNames: `[name].js`,
-        chunkFileNames: `[name].js`,
-        assetFileNames: `[name].[ext]`
+        entryFileNames: `assets/[name].[hash].js`,
+        chunkFileNames: `assets/[name].[hash].js`,
+        assetFileNames: `assets/[name].[hash].[ext]`
       }
     }
   }

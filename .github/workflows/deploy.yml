@@ -28,8 +28,6 @@ jobs:
         
       - name: Build project
         run: npm run build
-        env:
-          PUBLIC_URL: 'https://livemusiclocator.github.io/instabear'
         
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
