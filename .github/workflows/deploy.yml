@@ -1,4 +1,4 @@
-// .github/workflows/deploy.yml
+# GitHub Pages deployment workflow
 name: Deploy to GitHub Pages
 
 on:
