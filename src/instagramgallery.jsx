@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
 
-// Initialize Octokit
 const octokit = new Octokit({
   auth: import.meta.env.VITE_GITHUB_TOKEN
 });
+
 
 
 const getMelbourneDate = () => {
@@ -129,12 +129,20 @@ async function postToInstagram(imageUrls, captions) {
   }
 }
 
-// GitHub upload function
-const uploadToGitHub = async (base64Image, filename) => {
+/const uploadToGitHub = async (base64Image, filename) => {
+  console.log('Starting GitHub upload with token present:', !!import.meta.env.VITE_GITHUB_TOKEN);
+  
   const content = base64Image.split(',')[1];
   const path = `temp-images/${filename}`;
   
   try {
+    console.log('Attempting to check if file exists:', {
+      owner: 'livemusiclocator',
+      repo: 'instabear',
+      path,
+      ref: 'main'
+    });
+
     // Check if file exists
     let sha;
     try {
@@ -145,9 +153,19 @@ const uploadToGitHub = async (base64Image, filename) => {
         ref: 'main'
       });
       sha = data.sha;
+      console.log('File exists, got SHA:', sha);
     } catch (error) {
-      // File doesn't exist yet, that's fine
+      console.log('File does not exist yet (this is normal for new files):', error.message);
     }
+
+    console.log('Preparing upload with params:', {
+      owner: 'livemusiclocator',
+      repo: 'instabear',
+      path,
+      contentLength: content.length,
+      hasSha: !!sha,
+      branch: 'main'
+    });
 
     // Upload file
     const result = await octokit.rest.repos.createOrUpdateFileContents({
@@ -160,14 +178,22 @@ const uploadToGitHub = async (base64Image, filename) => {
       branch: 'main'
     });
 
-    console.log('Upload successful:', result);
-    const publicUrl = getPublicUrl(path);
+    console.log('Upload successful result:', {
+      status: result.status,
+      url: result.data?.content?.download_url
+    });
 
+    const publicUrl = getPublicUrl(path);
     console.log('Generated public URL:', publicUrl);
     return publicUrl;
 
   } catch (error) {
-    console.error('GitHub upload failed:', error);
+    console.error('Detailed GitHub upload error:', {
+      message: error.message,
+      status: error.status,
+      response: error.response?.data,
+      token: import.meta.env.VITE_GITHUB_TOKEN ? 'Present' : 'Missing'
+    });
     throw new Error(`GitHub upload failed: ${error.message}`);
   }
 };
