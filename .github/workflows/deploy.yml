@@ -1,10 +1,5 @@
-# .github/workflows/deploy.yml
 name: Deploy to GitHub Pages
-run: npm run build
-            env:
-            VITE_GITHUB_TOKEN: ${{ secrets.VITE_GITHUB_TOKEN }}
-            VITE_INSTAGRAM_ACCESS_TOKEN: ${{ secrets.VITE_INSTAGRAM_ACCESS_TOKEN }}
-            VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+
 on:
   push:
     branches: [ main ]
@@ -34,6 +29,8 @@ jobs:
         run: npm run build
         env:
           VITE_GITHUB_TOKEN: ${{ secrets.VITE_GITHUB_TOKEN }}
+          VITE_INSTAGRAM_ACCESS_TOKEN: ${{ secrets.VITE_INSTAGRAM_ACCESS_TOKEN }}
+          VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID }}
         
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
