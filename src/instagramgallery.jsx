@@ -129,7 +129,7 @@ async function postToInstagram(imageUrls, captions) {
   }
 }
 
-/const uploadToGitHub = async (base64Image, filename) => {
+const uploadToGitHub = async (base64Image, filename) => {
   console.log('Starting GitHub upload with token present:', !!import.meta.env.VITE_GITHUB_TOKEN);
   
   const content = base64Image.split(',')[1];
