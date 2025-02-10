@@ -1,0 +1,43 @@
+# .github/workflows/generate-and-post.yml
+name: Generate and Post Gig Guide
+
+on:
+  schedule:
+    - cron: '35 7 * * *' # 7:35 AM daily
+  workflow_dispatch: # Allow manual triggers
+
+jobs:
+  generate-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Start React app
+        run: npm run dev & # Start the React app in the background
+
+      - name: Generate images
+        run: node generateImages.js
+
+      - name: Upload images to Imgur
+        run: |
+          # Add Imgur upload logic here
+          echo "Uploading images to Imgur..."
+
+      - name: Post to Instagram
+        run: |
+          # Add Instagram posting logic here
+          echo "Posting to Instagram..."
+
+      - name: Send Slack notification
+        run: |
+          # Add Slack notification logic here
+          echo "Sending Slack notification..."
