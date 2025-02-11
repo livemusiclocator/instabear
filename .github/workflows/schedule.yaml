@@ -1,4 +1,4 @@
-# .github/workflows/generate-and-post.yml
+#.github/workflows/generate-and-post.yml
 name: Generate and Post Gig Guide
 
 on:
@@ -9,6 +9,9 @@ on:
 jobs:
   generate-images:
     runs-on: ubuntu-latest
+    permissions: # Add permissions for deleting files
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -21,16 +24,22 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Start React app
-        run: npm run dev & # Start the React app in the background
+      - name: Start React app (if needed)
+        run: npm run dev & # Start the React app in the background (if you need it for image generation)
+
+      - name: Delete temporary images (BEFORE generating new ones)
+        run: |
+          find temp-images/ -mindepth 1 -not -name "README.md" -delete # Keep README.md
+          mkdir -p temp-images
+          chmod 777 temp-images # Optional, but good practice
 
       - name: Generate images
         run: node generateImages.js
 
-      - name: Upload images to Imgur
+      - name: Upload images to Imgur (or GitHub in your case)
         run: |
-          # Add Imgur upload logic here
-          echo "Uploading images to Imgur..."
+          # Add Imgur/GitHub upload logic here
+          echo "Uploading images..."
 
       - name: Post to Instagram
         run: |

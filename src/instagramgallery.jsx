@@ -32,6 +32,15 @@ async function postToInstagram(imageUrls, captions) {
   const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
   const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
 
+  console.log('Token analysis:', {
+    length: INSTAGRAM_ACCESS_TOKEN?.length,
+    firstChars: INSTAGRAM_ACCESS_TOKEN?.substring(0, 10) + '...',
+    lastChars: '...' + INSTAGRAM_ACCESS_TOKEN?.substring(INSTAGRAM_ACCESS_TOKEN.length - 10),
+    containsSpaces: INSTAGRAM_ACCESS_TOKEN?.includes(' '),
+    containsNewlines: INSTAGRAM_ACCESS_TOKEN?.includes('\n')
+  });
+
+
   try {
     console.log('Starting Instagram post process with URLs:', imageUrls);
 
