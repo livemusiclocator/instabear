@@ -192,7 +192,8 @@ const uploadToGitHub = async (base64Image, filename) => {
       url: result.data?.content?.download_url
     });
 
-    const publicUrl = getPublicUrl(path);
+    // Generate and return the public URL
+    const publicUrl = `https://lml.live/instabear/${path}`;
     console.log('Generated public URL:', publicUrl);
     return publicUrl;
 
