@@ -25,13 +25,152 @@ jobs:
         with:
           chrome-version: stable
 
+      - name: Verify Chrome installation
+        run: |
+          echo "Chrome version:"
+          google-chrome --version
+          echo "Chrome location:"
+          which google-chrome
+          echo "Chrome executable permissions:"
+          ls -l $(which google-chrome)
+
       - name: Install dependencies
         run: |
           npm install
           npm install puppeteer-core
 
+      - name: Setup temp-images directory
+        run: |
+          echo "Setting up temp-images directory..."
+          mkdir -p temp-images
+          chmod 777 temp-images
+          echo "Current permissions:"
+          ls -la temp-images/
+          echo "Current directory structure:"
+          pwd
+          ls -la
+
       - name: Build React app
-        run: npm run build
+        run: |
+          # Create .env file for Vite
+          echo "Creating .env file..."
+          cat > .env << EOF
+          VITE_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          VITE_INSTAGRAM_ACCESS_TOKEN=${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID=${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+          VITE_SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}
+          EOF
+          
+          # Show .env file (with values masked)
+          echo "Checking .env file (values masked):"
+          sed 's/=.*$/=***/' .env
+          
+          # Build the app with debug output
+          echo "Building React app..."
+          DEBUG=vite:* VITE_DEBUG=true npm run build
+          
+          # Verify environment variables in build output
+          echo "Checking build output for environment variables..."
+          if grep -r "import.meta.env" dist/; then
+            echo "Error: Found raw import.meta.env references in build output"
+            exit 1
+          fi
+        env:
+          VITE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+          VITE_SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Verify build output
+        run: |
+          echo "Checking dist directory contents:"
+          ls -la dist/
+          
+          echo "Checking index.html content:"
+          cat dist/index.html
+          
+          echo "Checking for assets:"
+          ls -la dist/assets/
+          
+          echo "Checking for environment variables in built files:"
+          echo "Looking in JavaScript files..."
+          for file in dist/assets/*.js; do
+            echo "Checking $file for VITE_ variables:"
+            # Look for VITE_ variables but don't show their values
+            grep -o "VITE_[A-Z_]*" "$file" || true
+          done
+          
+          echo "Verifying Vite replaced import.meta.env:"
+          if grep -l "import.meta.env" dist/assets/*.js; then
+            echo "Warning: Found unreplaced import.meta.env references"
+            exit 1
+          else
+            echo "No unreplaced import.meta.env found - good!"
+          fi
+
+      - name: Verify environment
+        run: |
+          echo "Checking environment variables (sanitized):"
+          echo "VITE_GITHUB_TOKEN exists: ${{ !!secrets.GITHUB_TOKEN }}"
+          echo "VITE_INSTAGRAM_ACCESS_TOKEN exists: ${{ !!secrets.INSTAGRAM_ACCESS_TOKEN }}"
+          echo "VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID exists: ${{ !!secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}"
+          echo "VITE_SLACK_WEBHOOK_URL exists: ${{ !!secrets.SLACK_WEBHOOK_URL }}"
+
+      - name: Start preview server
+        run: |
+          # Configure Vite preview
+          echo "Configuring Vite preview server..."
+          export VITE_PORT=4173
+          export VITE_HOST=localhost
+          
+          # Create preview environment file
+          echo "Creating preview environment file..."
+          cat > .env.preview << EOF
+          VITE_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          VITE_INSTAGRAM_ACCESS_TOKEN=${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID=${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
+          VITE_SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}
+          EOF
+          
+          # Start server with debug output and environment variables
+          echo "Starting preview server..."
+          env $(cat .env.preview | xargs) DEBUG=vite:* VITE_DEBUG=true npm run preview -- --host $VITE_HOST --port $VITE_PORT > server.log 2>&1 & echo $! > preview.pid
+          
+          # Wait for server to start
+          echo "Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -s http://$VITE_HOST:$VITE_PORT > /dev/null; then
+              echo "Server is up!"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Server failed to start after 30 seconds"
+              cat server.log
+              exit 1
+            fi
+            echo "Attempt $i: Server not ready yet..."
+            sleep 1
+          done
+          
+          # Show server logs and status
+          echo "Server logs:"
+          cat server.log
+          
+          echo "Server status and HTML content:"
+          RESPONSE=$(curl -s http://$VITE_HOST:$VITE_PORT)
+          echo "$RESPONSE" > server-response.html
+          
+          echo "Checking for environment variable placeholders in HTML..."
+          if grep -q "import.meta.env" server-response.html; then
+            echo "Error: Found unreplaced environment variables in HTML"
+            exit 1
+          fi
+          
+          echo "Checking for VITE_ variables in HTML (names only)..."
+          grep -o "VITE_[A-Z_]*" server-response.html || true
+          
+          echo "Running processes:"
+          ps aux | grep preview
         env:
           VITE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
@@ -52,18 +191,33 @@ jobs:
           async function generateImages() {
             console.log('Starting image generation process...');
             
-            const browser = await puppeteer.launch({
-              channel: 'chrome',
-              args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--font-render-hinting=none'
-              ]
-            });
-
+            let browser;
+            
             try {
+              const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+              console.log('Using Chrome executable:', executablePath);
+              
+              const launchOptions = {
+                executablePath,
+                args: [
+                  '--no-sandbox',
+                  '--disable-setuid-sandbox',
+                  '--disable-dev-shm-usage',
+                  '--font-render-hinting=none',
+                  '--disable-web-security',
+                  '--allow-insecure-localhost',
+                  '--disable-features=IsolateOrigins,site-per-process'
+                ]
+              };
+              console.log('Launch options:', JSON.stringify(launchOptions, null, 2));
+              
+              browser = await puppeteer.launch(launchOptions);
+              console.log('Browser launched successfully');
               const page = await browser.newPage();
+              
+              // Enable more verbose logging
+              page.on('console', msg => console.log('Browser console:', msg.text()));
+              page.on('pageerror', err => console.error('Browser error:', err));
               
               // Set viewport to match Instagram requirements
               await page.setViewport({
@@ -72,13 +226,60 @@ jobs:
                 deviceScaleFactor: 1.9
               });
 
-              // Navigate to the built React app
-              await page.goto('file://' + join(__dirname, 'dist/index.html'), {
-                waitUntil: 'networkidle0'
+              console.log('Navigating to local server...');
+              await page.goto('http://localhost:4173', {
+                waitUntil: 'networkidle0',
+                timeout: 60000
               });
+              console.log('Page loaded');
 
-              // Wait for gigs to load and images to be generated
-              await page.waitForSelector('.title-slide', { timeout: 30000 });
+              // Take screenshot for debugging
+              await page.screenshot({
+                path: 'debug-screenshot.png',
+                fullPage: true
+              });
+              console.log('Debug screenshot saved');
+
+              // Debug page content and environment variables
+              const content = await page.content();
+              console.log('Page HTML length:', content.length);
+              console.log('First 500 chars of HTML:', content.substring(0, 500));
+              
+              // Check environment variables in browser
+              const envVars = await page.evaluate(() => {
+                const vars = {
+                  VITE_GITHUB_TOKEN: !!import.meta.env.VITE_GITHUB_TOKEN,
+                  VITE_INSTAGRAM_ACCESS_TOKEN: !!import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN,
+                  VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: !!import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID,
+                  VITE_SLACK_WEBHOOK_URL: !!import.meta.env.VITE_SLACK_WEBHOOK_URL
+                };
+                console.log('Environment variables in browser:', vars);
+                return vars;
+              });
+              console.log('Environment variables check:', envVars);
+
+              // Check if root element exists
+              const rootExists = await page.evaluate(() => {
+                const root = document.getElementById('root');
+                console.log('Root element:', root ? 'Found' : 'Not found');
+                console.log('Root HTML:', root ? root.innerHTML : 'N/A');
+                return !!root;
+              });
+              console.log('Root element exists:', rootExists);
+
+              // Wait for React to hydrate and render
+              await page.waitForFunction(() => {
+                const root = document.getElementById('root');
+                return root && root.children.length > 0;
+              }, { timeout: 30000 });
+              console.log('React app mounted');
+
+              // Wait for title slide with increased timeout
+              await page.waitForSelector('.title-slide', { 
+                timeout: 60000,
+                visible: true 
+              });
+              console.log('Title slide found');
               
               // Click the Generate Images button
               const generateButton = await page.$('button:has-text("Generate Images")');
@@ -97,9 +298,22 @@ jobs:
 
             } catch (error) {
               console.error('Error generating images:', error);
+              // Take error screenshot if possible
+              try {
+                await page.screenshot({
+                  path: 'error-screenshot.png',
+                  fullPage: true
+                });
+                console.log('Error screenshot saved');
+              } catch (screenshotError) {
+                console.error('Failed to take error screenshot:', screenshotError);
+              }
               process.exit(1);
             } finally {
-              await browser.close();
+              if (browser) {
+                await browser.close();
+                console.log('Browser closed');
+              }
             }
           }
 
@@ -109,6 +323,15 @@ jobs:
       - name: Make generateImages.js executable
         run: chmod +x generateImages.js
 
+      - name: Check server status
+        run: |
+          if ! curl -s http://localhost:4173 > /dev/null; then
+            echo "Server is not responding. Here are the last 50 lines of the log:"
+            tail -n 50 server.log
+            exit 1
+          fi
+          echo "Server is responding correctly"
+
       - name: Generate images
         run: node generateImages.js
         env:
@@ -116,6 +339,7 @@ jobs:
           VITE_INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
           VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
           VITE_SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PUPPETEER_EXECUTABLE_PATH: $(which google-chrome)
 
       - name: List generated images
         run: |
@@ -129,6 +353,27 @@ jobs:
           git add temp-images/
           git commit -m "Add generated gig guide images for $(date +'%Y-%m-%d')" || echo "No changes to commit"
           git push
+
+      - name: Upload debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: debug-artifacts
+          path: |
+            debug-screenshot.png
+            error-screenshot.png
+            server.log
+            server-response.html
+          retention-days: 5
+
+      - name: Kill preview server
+        if: always()
+        run: |
+          if [ -f preview.pid ]; then
+            echo "Killing preview server..."
+            kill $(cat preview.pid) || true
+            rm preview.pid
+          fi
 
       - name: Send Slack notification
         if: success()
