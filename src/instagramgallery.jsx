@@ -206,12 +206,72 @@ const uploadToGitHub = async (base64Image, filename) => {
 };
 
 // Constants
+const CLEANUP_MODE = 'immediate'; // 'none' | 'immediate' | 'rolling'
+const CLEANUP_DAYS = 7; // Only used when CLEANUP_MODE is 'rolling'
+
 const BRAND_BLUE = '#00B2E3';
 const BRAND_ORANGE = '#FF5C35';
 const INSTAGRAM_HEIGHT = 540;
 const HEADER_HEIGHT = 48;
 const MIN_BOTTOM_MARGIN = 24;
 const CONTAINER_HEIGHT = INSTAGRAM_HEIGHT - HEADER_HEIGHT - MIN_BOTTOM_MARGIN - 16;
+
+// Cleanup function
+const cleanupImages = async () => {
+  console.log('Starting image cleanup...');
+  if (CLEANUP_MODE === 'none') {
+    console.log('Cleanup mode is none, skipping cleanup');
+    return;
+  }
+
+  try {
+    // Get all files in temp-images directory
+    const { data: files } = await octokit.rest.repos.getContent({
+      owner: 'livemusiclocator',
+      repo: 'instabear',
+      path: 'temp-images',
+      ref: 'main'
+    });
+
+    // Filter image files
+    const imageFiles = files.filter(file => 
+      file.type === 'file' && 
+      file.name.match(/^gigs_\d{8}_carousel\d+\.png$/)
+    );
+
+    for (const file of imageFiles) {
+      const match = file.name.match(/^gigs_(\d{8})_/);
+      if (!match) continue;
+
+      const fileDate = new Date(
+        match[1].replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')
+      );
+      
+      let shouldDelete = false;
+      
+      if (CLEANUP_MODE === 'immediate') {
+        shouldDelete = true;
+      } else if (CLEANUP_MODE === 'rolling') {
+        const daysOld = (new Date() - fileDate) / (1000 * 60 * 60 * 24);
+        shouldDelete = daysOld > CLEANUP_DAYS;
+      }
+
+      if (shouldDelete) {
+        await octokit.rest.repos.deleteFile({
+          owner: 'livemusiclocator',
+          repo: 'instabear',
+          path: `temp-images/${file.name}`,
+          message: `Remove temporary image ${file.name}`,
+          sha: file.sha,
+          branch: 'main'
+        });
+        console.log(`Deleted image: ${file.name} (Mode: ${CLEANUP_MODE})`);
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up images:', error);
+  }
+};
 
 // Utility functions
 function measureTextWidth(text, fontSize, fontWeight) {
@@ -580,6 +640,9 @@ const slides = useMemo(() => {
               const result = await postToInstagram(uploadedImages.urls, uploadedImages.captions);
               if (result.success) {
                 setUploadStatus('Successfully posted to Instagram!');
+          
+                // Clean up images after successful post
+                await cleanupImages();
           
                 // ✅ Send Slack success notification
                 const instagramPostUrl = `https://www.instagram.com/${import.meta.env.VITE_INSTAGRAM_USERNAME}`;
