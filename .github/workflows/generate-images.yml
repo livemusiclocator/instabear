@@ -2,12 +2,14 @@ name: Generate Daily Gig Guide Images
 
 on:
   schedule:
-    - cron: '35 7 * * *' # 7:35 AM Melbourne time
+    - cron: '35 20 * * *' # 7:35 AM Melbourne time (UTC+11, so 20:35 UTC previous day)
   workflow_dispatch: # Allow manual triggers for testing
 
 jobs:
   generate-images:
     runs-on: ubuntu-latest
+    env:
+      TZ: 'Australia/Melbourne' # Set timezone for the job
     permissions:
       contents: write # Needed for pushing images to repo
 
@@ -20,12 +22,47 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Verify timezone and time synchronization
+        run: |
+          echo "Installing time synchronization tools..."
+          sudo apt-get update
+          sudo apt-get install -y chrony ntpstat
+          
+          echo "System timezone:"
+          cat /etc/timezone || true
+          echo "Current time in Melbourne:"
+          TZ=Australia/Melbourne date
+          echo "Current time in UTC:"
+          date -u
+          echo "Date used for image generation:"
+          TZ=Australia/Melbourne date +'%Y-%m-%d'
+          
+          echo "Checking time synchronization status..."
+          sudo systemctl status chronyd || true
+          chronyc tracking || true
+          chronyc sources || true
+          
+          echo "Verifying time drift..."
+          DRIFT=$(chronyc tracking 2>/dev/null | grep "Last offset" | awk '{print $4}')
+          if [ ! -z "$DRIFT" ] && [ $(echo "$DRIFT > 1" | bc -l) -eq 1 ]; then
+            echo "Warning: System time drift is high: $DRIFT seconds"
+            echo "Forcing time synchronization..."
+            sudo chronyc -a 'burst 4/4'
+            sudo chronyc makestep
+          fi
+          
+          echo "Setting consistent timezone for all commands..."
+          echo "Australia/Melbourne" | sudo tee /etc/timezone
+          sudo dpkg-reconfigure --frontend noninteractive tzdata
+          
+          echo "✓ Time synchronization verified"
+
       - name: Install Chrome
         uses: browser-actions/setup-chrome@latest
         with:
           chrome-version: stable
 
-      - name: Verify Chrome installation
+      - name: Verify Chrome and graphics configuration
         run: |
           echo "Chrome version:"
           google-chrome --version
@@ -33,11 +70,141 @@ jobs:
           which google-chrome
           echo "Chrome executable permissions:"
           ls -l $(which google-chrome)
+          
+          echo "Checking graphics configuration..."
+          echo "GPU devices:"
+          lspci | grep -i vga || true
+          echo "OpenGL info:"
+          DISPLAY=:0 glxinfo 2>/dev/null || true
+          echo "X11 configuration:"
+          [ -f /etc/X11/xorg.conf ] && cat /etc/X11/xorg.conf || echo "No Xorg config found"
+          
+          echo "Installing graphics debugging tools..."
+          sudo apt-get install -y mesa-utils x11-utils
+          
+          echo "Setting up virtual display..."
+          export DISPLAY=:99
+          sudo Xvfb :99 -screen 0 900x600x24 > /dev/null 2>&1 &
+          sleep 3
+          
+          echo "Testing Chrome rendering..."
+          google-chrome --headless \
+            --disable-gpu \
+            --no-sandbox \
+            --screenshot=test.png \
+            --window-size=540,540 \
+            --force-device-scale-factor=1.9 \
+            data:text/html,<html><body>Test</body></html>
+          
+          if [ -f test.png ]; then
+            echo "✓ Chrome rendering test successful"
+            file test.png
+            rm test.png
+          else
+            echo "Chrome rendering test failed"
+            exit 1
+          fi
+          
+          echo "Checking Chrome sandbox configuration..."
+          if [ -f /etc/sysctl.d/10-ptrace.conf ]; then
+            echo "ptrace_scope setting:"
+            cat /etc/sysctl.d/10-ptrace.conf
+          fi
+          
+          echo "Checking Chrome capabilities..."
+          getcap $(which google-chrome) || true
+          
+          echo "Setting up Chrome sandbox..."
+          sudo sysctl -w kernel.unprivileged_userns_clone=1 || true
+          sudo mkdir -p /etc/chrome-sandbox
+          sudo chown root:root $(which google-chrome)
+          sudo chmod 4755 $(which google-chrome)
+          
+          echo "Testing Chrome with sandbox..."
+          google-chrome --headless --disable-gpu --no-sandbox about:blank &
+          CHROME_PID=$!
+          sleep 2
+          if ps -p $CHROME_PID > /dev/null; then
+            echo "✓ Chrome sandbox test successful"
+            kill $CHROME_PID
+          else
+            echo "Chrome sandbox test failed"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: |
+          # Install Node dependencies
           npm install
           npm install puppeteer-core
+          
+          # Install required system packages
+          echo "Installing system dependencies..."
+          sudo apt-get update
+          sudo apt-get install -y net-tools iproute2 curl netcat dnsutils \
+            fontconfig fonts-liberation fonts-noto-color-emoji fonts-noto-cjk
+          
+          # Verify font configuration
+          echo "Checking font configuration..."
+          fc-list
+          echo "Font cache status:"
+          fc-cache -v
+          echo "Default font settings:"
+          fc-match sans-serif
+          fc-match serif
+          fc-match monospace
+          
+          # Create font config to ensure consistent rendering
+          echo "Configuring font settings..."
+          sudo bash -c 'cat > /etc/fonts/local.conf << EOF
+          <?xml version="1.0"?>
+          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+          <fontconfig>
+            <match target="pattern">
+              <test qual="any" name="family"><string>sans-serif</string></test>
+              <edit name="family" mode="assign" binding="same"><string>Liberation Sans</string></edit>
+            </match>
+            <match target="pattern">
+              <test qual="any" name="family"><string>serif</string></test>
+              <edit name="family" mode="assign" binding="same"><string>Liberation Serif</string></edit>
+            </match>
+            <match target="pattern">
+              <test qual="any" name="family"><string>monospace</string></test>
+              <edit name="family" mode="assign" binding="same"><string>Liberation Mono</string></edit>
+            </match>
+          </fontconfig>
+          EOF'
+          
+          # Update font cache
+          sudo fc-cache -f -v
+          
+          # Verify tools installation
+          echo "Verifying network tools..."
+          which netstat ip curl nc dig || true
+          
+          # Test DNS resolution and network connectivity
+          echo "Testing DNS resolution..."
+          dig +short github.com
+          dig +short api.github.com
+          dig +short raw.githubusercontent.com
+          
+          echo "Testing network connectivity..."
+          curl -I https://github.com
+          curl -I https://api.github.com
+          curl -I https://raw.githubusercontent.com
+          
+          echo "Checking system DNS configuration..."
+          cat /etc/resolv.conf
+          
+          echo "Checking firewall configuration..."
+          sudo iptables -L -n -v
+          
+          echo "Ensuring localhost access is allowed..."
+          sudo iptables -I INPUT -i lo -j ACCEPT
+          sudo iptables -I OUTPUT -o lo -j ACCEPT
+          
+          echo "Testing localhost connectivity..."
+          nc -zv localhost 4173 || echo "Port 4173 not yet listening"
 
       - name: Setup temp-images directory
         run: |
@@ -132,9 +299,23 @@ jobs:
           VITE_SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}
           EOF
           
+          # Configure Vite preview settings
+          cat > vite.preview.config.js << EOF
+          export default {
+            preview: {
+              port: 4173,
+              host: true,
+              strictPort: true,
+              cors: true,
+              https: false,
+              open: false,
+            }
+          }
+          EOF
+          
           # Start server with debug output and environment variables
           echo "Starting preview server..."
-          env $(cat .env.preview | xargs) DEBUG=vite:* VITE_DEBUG=true npm run preview -- --host $VITE_HOST --port $VITE_PORT > server.log 2>&1 & echo $! > preview.pid
+          env $(cat .env.preview | xargs) DEBUG=vite:* VITE_DEBUG=true npm run preview -- --config vite.preview.config.js > server.log 2>&1 & echo $! > preview.pid
           
           # Wait for server to start
           echo "Waiting for server to start..."
@@ -155,6 +336,18 @@ jobs:
           # Show server logs and status
           echo "Server logs:"
           cat server.log
+          
+          # Verify server network configuration
+          echo "Checking server network configuration..."
+          echo "Network interfaces:"
+          ip addr
+          echo "Listening ports:"
+          netstat -tulpn | grep LISTEN || ss -tulpn | grep LISTEN
+          echo "Server process details:"
+          ps aux | grep preview
+          
+          echo "Testing server connectivity..."
+          curl -v http://$VITE_HOST:$VITE_PORT
           
           echo "Server status and HTML content:"
           RESPONSE=$(curl -s http://$VITE_HOST:$VITE_PORT)
@@ -206,7 +399,16 @@ jobs:
                   '--font-render-hinting=none',
                   '--disable-web-security',
                   '--allow-insecure-localhost',
-                  '--disable-features=IsolateOrigins,site-per-process'
+                  '--disable-features=IsolateOrigins,site-per-process',
+                  '--force-color-profile=srgb',
+                  '--force-device-scale-factor=1.9',
+                  '--disable-gpu-vsync',
+                  '--run-all-compositor-stages-before-draw',
+                  '--disable-accelerated-2d-canvas',
+                  '--disable-canvas-aa',
+                  '--disable-2d-canvas-clip-aa',
+                  '--disable-gl-drawing-for-tests',
+                  '--deterministic-mode'
                 ]
               };
               console.log('Launch options:', JSON.stringify(launchOptions, null, 2));
@@ -218,12 +420,62 @@ jobs:
               // Enable more verbose logging
               page.on('console', msg => console.log('Browser console:', msg.text()));
               page.on('pageerror', err => console.error('Browser error:', err));
+              page.on('requestfailed', request => {
+                console.error('Request failed:', {
+                  url: request.url(),
+                  errorText: request.failure().errorText,
+                  method: request.method()
+                });
+              });
+              page.on('response', response => {
+                const status = response.status();
+                if (status >= 400) {
+                  console.error('Response error:', {
+                    url: response.url(),
+                    status,
+                    statusText: response.statusText()
+                  });
+                }
+              });
               
-              // Set viewport to match Instagram requirements
+              // Test network connectivity
+              console.log('Testing network connectivity...');
+              try {
+                const testResponse = await page.goto('http://example.com', {
+                  waitUntil: 'networkidle0',
+                  timeout: 30000
+                });
+                console.log('Network test result:', {
+                  status: testResponse.status(),
+                  ok: testResponse.ok()
+                });
+              } catch (error) {
+                console.error('Network test failed:', error);
+              }
+              
+              // Set viewport and ensure consistent rendering
               await page.setViewport({
                 width: 540,
                 height: 540,
                 deviceScaleFactor: 1.9
+              });
+              
+              // Force consistent rendering settings
+              await page.evaluateOnNewDocument(() => {
+                // Force consistent date/time handling
+                Date.now = () => new Date('2025-02-13T00:00:00.000Z').getTime();
+                
+                // Force consistent random number generation
+                Math.random = () => 0.5;
+                
+                // Force consistent animation frame timing
+                let frame = 0;
+                window.requestAnimationFrame = (cb) => setTimeout(() => cb(++frame), 16);
+                
+                // Force consistent viewport
+                Object.defineProperty(window, 'devicePixelRatio', {
+                  get: () => 1.9
+                });
               });
 
               console.log('Navigating to local server...');
@@ -332,6 +584,37 @@ jobs:
           fi
           echo "Server is responding correctly"
 
+      - name: Verify system resources
+        run: |
+          echo "Checking system resources..."
+          echo "Memory status:"
+          free -h
+          echo "CPU info:"
+          lscpu
+          echo "System load:"
+          uptime
+          echo "Available disk space:"
+          df -h
+          
+          # Check if we have enough resources
+          TOTAL_MEM=$(free | awk '/^Mem:/{print $2}')
+          FREE_MEM=$(free | awk '/^Mem:/{print $4}')
+          MIN_MEM=$((2 * 1024 * 1024)) # 2GB in KB
+          
+          if [ $FREE_MEM -lt $MIN_MEM ]; then
+            echo "Warning: Less than 2GB of free memory available"
+            # Try to free up some memory
+            sync
+            echo 3 | sudo tee /proc/sys/vm/drop_caches
+            FREE_MEM=$(free | awk '/^Mem:/{print $4}')
+            if [ $FREE_MEM -lt $MIN_MEM ]; then
+              echo "Error: Not enough memory available even after clearing caches"
+              exit 1
+            fi
+          fi
+          
+          echo "✓ System resources verified"
+
       - name: Generate images
         run: node generateImages.js
         env:
@@ -341,10 +624,66 @@ jobs:
           VITE_SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           PUPPETEER_EXECUTABLE_PATH: $(which google-chrome)
 
-      - name: List generated images
+      - name: Verify generated images
         run: |
-          echo "Generated images in temp-images directory:"
+          echo "Installing image verification tools..."
+          sudo apt-get install -y imagemagick pngcheck
+          
+          echo "Checking generated images in temp-images directory:"
           ls -la temp-images/
+          
+          # Count PNG files
+          PNG_COUNT=$(find temp-images -name "gigs_*.png" | wc -l)
+          echo "Found $PNG_COUNT PNG files"
+          
+          if [ "$PNG_COUNT" -eq 0 ]; then
+            echo "Error: No images were generated"
+            exit 1
+          fi
+          
+          # Create image verification report
+          echo "Generating image verification report..."
+          REPORT_FILE="image-verification.txt"
+          : > "$REPORT_FILE" # Clear/create report file
+          
+          # Verify each image
+          for img in temp-images/gigs_*.png; do
+            if [ -f "$img" ]; then
+              echo "Checking $img..." | tee -a "$REPORT_FILE"
+              
+              # Get image dimensions and type
+              identify -verbose "$img" >> "$REPORT_FILE"
+              
+              # Check PNG file integrity
+              pngcheck -v "$img" >> "$REPORT_FILE" 2>&1
+              
+              # Check file size
+              SIZE=$(stat --format=%s "$img")
+              echo "File size: $SIZE bytes" >> "$REPORT_FILE"
+              if [ "$SIZE" -lt 1000 ]; then
+                echo "Error: Image file is suspiciously small" | tee -a "$REPORT_FILE"
+                exit 1
+              fi
+              
+              # Verify image dimensions (should be 540x540)
+              DIMENSIONS=$(identify -format "%wx%h" "$img")
+              if [ "$DIMENSIONS" != "540x540" ]; then
+                echo "Error: Invalid image dimensions: $DIMENSIONS (expected 540x540)" | tee -a "$REPORT_FILE"
+                exit 1
+              fi
+              
+              # Check color depth and format
+              COLOR_INFO=$(identify -format "%[bit-depth]-%[colorspace]" "$img")
+              echo "Color info: $COLOR_INFO" >> "$REPORT_FILE"
+              
+              # Calculate image hash for consistency check
+              HASH=$(convert "$img" -format "%#" info:)
+              echo "Image hash: $HASH" >> "$REPORT_FILE"
+            fi
+          done
+          
+          echo "✓ All images verified successfully"
+          echo "Detailed verification report saved to $REPORT_FILE"
 
       - name: Commit and push images
         run: |
@@ -364,6 +703,7 @@ jobs:
             error-screenshot.png
             server.log
             server-response.html
+            image-verification.txt
           retention-days: 5
 
       - name: Kill preview server

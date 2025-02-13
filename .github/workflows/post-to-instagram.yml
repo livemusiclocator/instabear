@@ -6,6 +6,8 @@ on:
 jobs:
   post-to-instagram:
     runs-on: ubuntu-latest
+    env:
+      TZ: 'Australia/Melbourne'
 
     steps:
       - name: Checkout repository
@@ -16,86 +18,190 @@ jobs:
         with:
           node-version: '18'
 
+      - name: Verify timezone
+        run: |
+          echo "Current time in Melbourne:"
+          TZ=Australia/Melbourne date
+          echo "Current time in UTC:"
+          date -u
+
       - name: Install dependencies
         run: |
           npm install
-          npm install puppeteer-core
+          npm install puppeteer-core node-fetch
+          
+          # Verify node-fetch installation
+          echo "Checking node-fetch installation..."
+          if ! npm list node-fetch > /dev/null 2>&1; then
+            echo "Error: node-fetch not installed correctly"
+            exit 1
+          fi
 
-      - name: Install Chrome
-        uses: browser-actions/setup-chrome@latest
-        with:
-          chrome-version: stable
-
-      - name: Create posting script
+      - name: Verify Instagram credentials
         run: |
-          cat > postToInstagram.js << 'EOL'
-          import puppeteer from 'puppeteer-core';
-          import { fileURLToPath } from 'url';
-          import { dirname, join } from 'path';
+          echo "Verifying Instagram credentials..."
+          
+          if [ -z "${{ secrets.INSTAGRAM_ACCESS_TOKEN }}" ]; then
+            echo "Error: Instagram access token is missing"
+            exit 1
+          fi
+          
+          if [ -z "${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}" ]; then
+            echo "Error: Instagram business account ID is missing"
+            exit 1
+          fi
+          
+          # Test Instagram API access
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            "https://graph.facebook.com/v18.0/${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}?fields=username&access_token=${{ secrets.INSTAGRAM_ACCESS_TOKEN }}")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed \$d)
+          
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "Error: Failed to verify Instagram credentials"
+            echo "Response: $BODY"
+            exit 1
+          fi
+          
+          USERNAME=$(echo "$BODY" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
+          echo "✓ Instagram credentials verified for account: $USERNAME"
 
-          const __filename = fileURLToPath(import.meta.url);
-          const __dirname = dirname(__filename);
+      - name: Install ImageMagick
+        run: sudo apt-get install -y imagemagick
 
-          async function postToInstagram() {
-            console.log('Starting Instagram posting process...');
+      - name: Verify temp-images directory and images
+        run: |
+          echo "Checking temp-images directory:"
+          ls -la temp-images/
+          
+          # Count PNG files
+          PNG_COUNT=$(find temp-images -name "gigs_*.png" | wc -l)
+          echo "Found $PNG_COUNT PNG files"
+          
+          if [ "$PNG_COUNT" -eq 0 ]; then
+            echo "Error: No images found to post"
+            exit 1
+          fi
+          
+          # Get today's date in YYYYMMDD format
+          TODAY=$(date +'%Y%m%d')
+          echo "Looking for images for date: $TODAY"
+          
+          # Check if we have today's images
+          if ! ls temp-images/gigs_${TODAY}_*.png >/dev/null 2>&1; then
+            echo "Error: No images found for today ($TODAY)"
+            exit 1
+          fi
+          
+          # Verify each image meets Instagram requirements
+          echo "Verifying image dimensions and format..."
+          for img in temp-images/gigs_${TODAY}_*.png; do
+            echo "Checking $img..."
             
-            const browser = await puppeteer.launch({
-              channel: 'chrome',
-              args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage'
-              ]
-            });
+            # Get image dimensions and format
+            DIMENSIONS=$(identify -format "%wx%h" "$img")
+            WIDTH=$(echo $DIMENSIONS | cut -d'x' -f1)
+            HEIGHT=$(echo $DIMENSIONS | cut -d'x' -f2)
+            
+            echo "Dimensions: ${WIDTH}x${HEIGHT}"
+            
+            # Check dimensions (Instagram requires square images)
+            if [ "$WIDTH" != "540" ] || [ "$HEIGHT" != "540" ]; then
+              echo "Error: Image dimensions must be 540x540 pixels"
+              exit 1
+            fi
+            
+            # Check file size (Instagram max is 8MB)
+            SIZE=$(stat --format=%s "$img")
+            SIZE_MB=$(echo "scale=2; $SIZE/1048576" | bc)
+            echo "File size: ${SIZE_MB}MB"
+            
+            if (( $(echo "$SIZE_MB > 8" | bc -l) )); then
+              echo "Error: Image file size must be under 8MB"
+              exit 1
+            fi
+          done
+          
+          echo "✓ All images verified and meet Instagram requirements"
 
+      - name: Test Instagram posting (dry run)
+        run: |
+          # Get today's date in YYYYMMDD format
+          TODAY=$(date +'%Y%m%d')
+          
+          # Get image URLs and generate captions
+          IMAGE_URLS=()
+          CAPTIONS=()
+          
+          # Sort files to ensure correct order
+          for img in $(ls temp-images/gigs_${TODAY}_*.png | sort); do
+            echo "Processing $img..."
+            IMAGE_URLS+=("https://raw.githubusercontent.com/${{ github.repository }}/main/$img")
+            
+            SLIDE_NUM=$(echo $img | grep -o 'carousel[0-9]*' | grep -o '[0-9]*')
+            if [ "$SLIDE_NUM" = "0" ]; then
+              CAPTIONS+=("Live Music Locator - Daily Gig Guide\nMore information at https://lml.live")
+            else
+              CAPTIONS+=("Slide $((SLIDE_NUM + 1))\nMore details at https://lml.live")
+            fi
+          done
+          
+          # Create test script
+          cat > test-post.js << 'EOL'
+          import { postToInstagram } from './src/instagramgallery.jsx';
+
+          async function testPost() {
             try {
-              const page = await browser.newPage();
+              // Import node-fetch dynamically
+              const fetch = (await import('node-fetch')).default;
               
-              await page.setViewport({
-                width: 540,
-                height: 540,
-                deviceScaleFactor: 1.9
-              });
-
-              // Navigate to the built React app
-              await page.goto('file://' + join(__dirname, 'dist/index.html'), {
-                waitUntil: 'networkidle0'
-              });
-
-              // Wait for the Post to Instagram button to be available
-              await page.waitForSelector('button:has-text("Post to Instagram")', { timeout: 30000 });
+              const imageUrls = process.env.IMAGE_URLS.split(',').map(url => url.trim()).filter(Boolean);
+              const captions = process.env.CAPTIONS.split('|||').map(caption => caption.trim());
               
-              // Click the Post to Instagram button
-              const postButton = await page.$('button:has-text("Post to Instagram")');
-              if (!postButton) {
-                throw new Error('Post to Instagram button not found');
+              console.log('Would post to Instagram with:', {
+                imageCount: imageUrls.length,
+                images: imageUrls,
+                captions: captions.map(c => c.substring(0, 50) + '...')
+              });
+              
+              // Test Instagram API endpoints without posting
+              const testEndpoint = `https://graph.facebook.com/v18.0/${process.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID}/media`;
+              const testResponse = await fetch(testEndpoint + '?access_token=' + process.env.VITE_INSTAGRAM_ACCESS_TOKEN);
+              const responseData = await testResponse.json();
+              
+              if (!testResponse.ok) {
+                throw new Error(`API test failed: ${testResponse.status} ${testResponse.statusText}\nResponse: ${JSON.stringify(responseData)}`);
               }
-              await postButton.click();
-
-              // Wait for posting to complete
-              await page.waitForFunction(
-                () => document.querySelector('.text-sm.text-gray-600')?.textContent?.includes('Successfully posted to Instagram'),
-                { timeout: 120000 }
-              );
-
-              console.log('Successfully posted to Instagram');
-
+              
+              // Test image URL accessibility
+              console.log('Testing image URL accessibility...');
+              for (const url of imageUrls) {
+                const imgResponse = await fetch(url);
+                if (!imgResponse.ok) {
+                  throw new Error(`Failed to access image: ${url}\nStatus: ${imgResponse.status}`);
+                }
+                console.log(`✓ Image accessible: ${url}`);
+              }
+              
+              console.log('✓ Instagram API endpoints accessible');
+              console.log('✓ All image URLs accessible');
+              console.log('✓ Dry run successful');
             } catch (error) {
-              console.error('Error posting to Instagram:', error);
+              console.error('Error in test:', error);
               process.exit(1);
-            } finally {
-              await browser.close();
             }
           }
 
-          postToInstagram();
+          testPost().catch(console.error);
           EOL
-
-      - name: Make posting script executable
-        run: chmod +x postToInstagram.js
-
-      - name: Build React app
-        run: npm run build
+          
+          # Join arrays with proper delimiters
+          IFS=,; IMAGE_URLS_STR="${IMAGE_URLS[*]}"
+          IFS='|||'; CAPTIONS_STR="${CAPTIONS[*]}"
+          
+          # Run test script
+          IMAGE_URLS="$IMAGE_URLS_STR" CAPTIONS="$CAPTIONS_STR" node test-post.js
         env:
           VITE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
@@ -103,7 +209,85 @@ jobs:
           VITE_SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
       - name: Post to Instagram
-        run: node postToInstagram.js
+        if: success() # Only run if dry run succeeds
+        run: |
+          # Get today's date in YYYYMMDD format
+          TODAY=$(date +'%Y%m%d')
+          
+          # Get image URLs and generate captions
+          IMAGE_URLS=()
+          CAPTIONS=()
+          
+          # Sort files to ensure correct order
+          for img in $(ls temp-images/gigs_${TODAY}_*.png | sort); do
+            # Upload to GitHub and get raw URL
+            echo "Processing $img..."
+            IMAGE_URLS+=("https://raw.githubusercontent.com/${{ github.repository }}/main/$img")
+            
+            # Generate caption based on slide number
+            SLIDE_NUM=$(echo $img | grep -o 'carousel[0-9]*' | grep -o '[0-9]*')
+            if [ "$SLIDE_NUM" = "0" ]; then
+              CAPTIONS+=("Live Music Locator - Daily Gig Guide\nMore information at https://lml.live")
+            else
+              CAPTIONS+=("Slide $((SLIDE_NUM + 1))\nMore details at https://lml.live")
+            fi
+          done
+          
+          # Create posting script
+          cat > post.js << 'EOL'
+          import { postToInstagram } from './src/instagramgallery.jsx';
+
+          async function post() {
+            try {
+              // Parse and validate image URLs
+              const imageUrls = process.env.IMAGE_URLS.split(',').map(url => url.trim()).filter(Boolean);
+              if (imageUrls.length === 0) {
+                throw new Error('No valid image URLs found');
+              }
+              console.log(`Found ${imageUrls.length} image URLs`);
+
+              // Parse and validate captions
+              const captions = process.env.CAPTIONS.split('|||').map(caption => caption.trim());
+              if (captions.length === 0) {
+                throw new Error('No valid captions found');
+              }
+              console.log(`Found ${captions.length} captions`);
+
+              // Verify counts match
+              if (imageUrls.length !== captions.length) {
+                throw new Error(`Mismatch between image count (${imageUrls.length}) and caption count (${captions.length})`);
+              }
+
+              console.log('Posting to Instagram with:', {
+                imageUrls,
+                captions: captions.map(c => c.substring(0, 50) + '...') // Log truncated captions
+              });
+
+              const result = await postToInstagram(imageUrls, captions);
+              
+              if (!result.success) {
+                throw new Error(`Failed to post: ${result.error}\nDetails: ${JSON.stringify(result.details)}`);
+              }
+              
+              console.log('Successfully posted to Instagram:', result);
+            } catch (error) {
+              console.error('Error in posting script:', error);
+              process.exit(1);
+            }
+          }
+
+          post().catch(error => {
+            console.error('Unhandled error:', error);
+            process.exit(1);
+          });
+          EOL
+          
+          # Join arrays with proper delimiters
+          IFS=,; IMAGE_URLS_STR="${IMAGE_URLS[*]}"
+          IFS='|||'; CAPTIONS_STR="${CAPTIONS[*]}"
+          
+          # Run posting script with properly formatted environment variables
+          IMAGE_URLS="$IMAGE_URLS_STR" CAPTIONS="$CAPTIONS_STR" node post.js
         env:
           VITE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
@@ -120,7 +304,7 @@ jobs:
       - name: Clean up temp images
         if: success()
         run: |
-          # Keep only README.md in temp-images
+          # Keep only README.md
           find temp-images/ -type f ! -name 'README.md' -delete
           
           # Commit the cleanup
