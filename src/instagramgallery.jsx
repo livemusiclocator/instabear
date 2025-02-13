@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import PropTypes from 'prop-types';
 import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
 
 const octokit = new Octokit({
   auth: import.meta.env.VITE_GITHUB_TOKEN
 });
-
-
 
 const getMelbourneDate = () => {
   return new Date().toLocaleDateString('en-AU', { 
@@ -16,7 +15,7 @@ const getMelbourneDate = () => {
     day: '2-digit'
   }).split('/').reverse().join('-');
 };
-const getPublicUrl = (path) => {
+const getPublicUrl = () => {
   return `https://lml.live/?dateRange=today`;  // Always use lml.live for the website URL
 };
 // Instagram posting function
@@ -270,6 +269,24 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date) {
   return caption;
 }
 
+// Define prop types for GigPanel
+GigPanel.propTypes = {
+  gig: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    genre_tags: PropTypes.arrayOf(PropTypes.string),
+    venue: PropTypes.shape({
+      name: PropTypes.string.isRequired,
+      address: PropTypes.string.isRequired
+    }).isRequired,
+    start_time: PropTypes.string.isRequired,
+    information_tags: PropTypes.arrayOf(PropTypes.string),
+    prices: PropTypes.arrayOf(PropTypes.shape({
+      amount: PropTypes.string
+    }))
+  }).isRequired,
+  isLast: PropTypes.bool.isRequired
+};
+
 // GigPanel Component
 function GigPanel({ gig, isLast }) {
   const gigNameRef = useRef(null);
@@ -339,6 +356,11 @@ function GigPanel({ gig, isLast }) {
     </div>
   );
 }
+
+// Define prop types for TitleSlide
+TitleSlide.propTypes = {
+  date: PropTypes.string.isRequired
+};
 
 // TitleSlide Component
 function TitleSlide({ date }) {
