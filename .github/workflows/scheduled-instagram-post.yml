@@ -1,0 +1,75 @@
+name: Scheduled Instagram Post
+
+on:
+  schedule:
+    - cron: '35 20 * * *' # 7:35 AM Melbourne time (UTC+11, so 20:35 UTC previous day)
+  workflow_dispatch: # Allow manual triggers for testing
+
+jobs:
+  post-to-instagram:
+    runs-on: ubuntu-latest
+    env:
+      TZ: 'Australia/Melbourne'
+    permissions:
+      contents: write # Needed for pushing images to repo
+
+    steps:
+      - name: Trigger image generation
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Generate Daily Gig Guide Images
+          token: ${{ secrets.GITHUB_TOKEN }}
+          wait-for-completion: true
+          wait-timeout: 600 # 10 minutes
+
+      - name: Wait for images to be available
+        run: |
+          echo "Waiting for images to be available in repository..."
+          TODAY=$(TZ=Australia/Melbourne date +'%Y%m%d')
+          
+          for i in {1..30}; do
+            echo "Attempt $i: Checking for images..."
+            
+            # Use GitHub API to check if images exist
+            RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              "https://api.github.com/repos/${{ github.repository }}/contents/temp-images")
+            
+            if echo "$RESPONSE" | grep -q "gigs_${TODAY}"; then
+              echo "✓ Images found for today"
+              break
+            fi
+            
+            if [ $i -eq 30 ]; then
+              echo "Error: Timeout waiting for images"
+              exit 1
+            fi
+            
+            echo "Images not ready yet, waiting..."
+            sleep 10
+          done
+
+      - name: Trigger Instagram post
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Post Gig Guide to Instagram
+          token: ${{ secrets.GITHUB_TOKEN }}
+          wait-for-completion: true
+          wait-timeout: 300 # 5 minutes
+
+      - name: Send Slack notification
+        if: success()
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{
+            "text": "✅ Daily gig guide has been generated and posted to Instagram successfully!"
+          }' ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Send error notification
+        if: failure()
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{
+            "text": "❌ Error in scheduled Instagram post workflow. Please check the GitHub Actions logs."
+          }' ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
