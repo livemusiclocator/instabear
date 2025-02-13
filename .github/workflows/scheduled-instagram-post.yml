@@ -12,15 +12,126 @@ jobs:
       TZ: 'Australia/Melbourne'
     permissions:
       contents: write # Needed for pushing images to repo
+      actions: write # Needed for triggering other workflows
+      id-token: write # Needed for GitHub token authentication
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Verify workflows and token
+        run: |
+          echo "Verifying workflow token..."
+          if [ -z "${{ secrets.WORKFLOW_TOKEN }}" ]; then
+            echo "Error: WORKFLOW_TOKEN secret is not set"
+            echo "Please create a Personal Access Token (PAT) with 'workflow' scope and add it as a repository secret named WORKFLOW_TOKEN"
+            exit 1
+          fi
+          
+          # Test token with GitHub API
+          RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows")
+          
+          if ! echo "$RESPONSE" | grep -q "workflows"; then
+            echo "Error: WORKFLOW_TOKEN does not have sufficient permissions"
+            echo "Response from GitHub API:"
+            echo "$RESPONSE" | jq '.' || echo "$RESPONSE"
+            exit 1
+          fi
+          
+          echo "✓ Workflow token verified successfully"
+          
+          echo "Verifying workflow files..."
+          WORKFLOWS_DIR=".github/workflows"
+          
+          # Check for image generation workflow
+          IMAGE_WORKFLOW="$WORKFLOWS_DIR/generate-images.yml"
+          if [ ! -f "$IMAGE_WORKFLOW" ]; then
+            echo "Error: Image generation workflow file not found at $IMAGE_WORKFLOW"
+            exit 1
+          fi
+          
+          # Check for Instagram posting workflow
+          POST_WORKFLOW="$WORKFLOWS_DIR/post-to-instagram.yml"
+          if [ ! -f "$POST_WORKFLOW" ]; then
+            echo "Error: Instagram posting workflow file not found at $POST_WORKFLOW"
+            exit 1
+          fi
+          
+          # Verify workflow names in files
+          if ! grep -q "name: Generate Daily Gig Guide Images" "$IMAGE_WORKFLOW"; then
+            echo "Error: Image generation workflow name mismatch"
+            exit 1
+          fi
+          
+          if ! grep -q "name: Post Gig Guide to Instagram" "$POST_WORKFLOW"; then
+            echo "Error: Instagram posting workflow name mismatch"
+            exit 1
+          fi
+          
+          # Check workflow permissions
+          for workflow in "$IMAGE_WORKFLOW" "$POST_WORKFLOW"; do
+            if ! grep -q "permissions:" "$workflow"; then
+              echo "Warning: No explicit permissions found in $workflow"
+            fi
+          done
+          
+          echo "✓ Workflow files verified successfully"
+
       - name: Trigger image generation
-        uses: benc-uk/workflow-dispatch@v1
+        uses: actions/github-script@v6
         with:
-          workflow: Generate Daily Gig Guide Images
-          token: ${{ secrets.GITHUB_TOKEN }}
-          wait-for-completion: true
-          wait-timeout: 600 # 10 minutes
+          github-token: ${{ secrets.WORKFLOW_TOKEN }} # Use a custom PAT with workflow permissions
+          script: |
+            const workflow = 'Generate Daily Gig Guide Images';
+            console.log(`Triggering workflow: ${workflow}`);
+            console.log(`Repository: ${context.repo.owner}/${context.repo.repo}`);
+            console.log(`Reference: ${context.ref}`);
+            console.log(`Token permissions: ${!!github.rest.actions}`);
+            
+            const result = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: workflow,
+              ref: context.ref
+            });
+            
+            console.log('Workflow triggered, waiting for completion...');
+            
+            // Wait for workflow to complete
+            let attempts = 0;
+            const maxAttempts = 60; // 10 minutes (60 * 10 seconds)
+            
+            while (attempts < maxAttempts) {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflow,
+                branch: context.ref,
+                per_page: 1
+              });
+              
+              if (runs.data.workflow_runs.length > 0) {
+                const run = runs.data.workflow_runs[0];
+                console.log(`Workflow status: ${run.status} (${run.conclusion})`);
+                
+                if (run.status === 'completed') {
+                  if (run.conclusion === 'success') {
+                    console.log('Image generation completed successfully');
+                    break;
+                  } else {
+                    throw new Error(`Workflow failed with conclusion: ${run.conclusion}`);
+                  }
+                }
+              }
+              
+              attempts++;
+              await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+            }
+            
+            if (attempts >= maxAttempts) {
+              throw new Error('Timeout waiting for workflow completion');
+            }
 
       - name: Wait for images to be available
         run: |
@@ -31,7 +142,7 @@ jobs:
             echo "Attempt $i: Checking for images..."
             
             # Use GitHub API to check if images exist
-            RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.WORKFLOW_TOKEN }}" \
               "https://api.github.com/repos/${{ github.repository }}/contents/temp-images")
             
             if echo "$RESPONSE" | grep -q "gigs_${TODAY}"; then
@@ -49,12 +160,56 @@ jobs:
           done
 
       - name: Trigger Instagram post
-        uses: benc-uk/workflow-dispatch@v1
+        uses: actions/github-script@v6
         with:
-          workflow: Post Gig Guide to Instagram
-          token: ${{ secrets.GITHUB_TOKEN }}
-          wait-for-completion: true
-          wait-timeout: 300 # 5 minutes
+          github-token: ${{ secrets.WORKFLOW_TOKEN }} # Use a custom PAT with workflow permissions
+          script: |
+            const workflow = 'Post Gig Guide to Instagram';
+            console.log(`Triggering workflow: ${workflow}`);
+            
+            const result = await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: workflow,
+              ref: context.ref
+            });
+            
+            console.log('Workflow triggered, waiting for completion...');
+            
+            // Wait for workflow to complete
+            let attempts = 0;
+            const maxAttempts = 30; // 5 minutes (30 * 10 seconds)
+            
+            while (attempts < maxAttempts) {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: workflow,
+                branch: context.ref,
+                per_page: 1
+              });
+              
+              if (runs.data.workflow_runs.length > 0) {
+                const run = runs.data.workflow_runs[0];
+                console.log(`Workflow status: ${run.status} (${run.conclusion})`);
+                
+                if (run.status === 'completed') {
+                  if (run.conclusion === 'success') {
+                    console.log('Instagram post completed successfully');
+                    break;
+                  } else {
+                    throw new Error(`Workflow failed with conclusion: ${run.conclusion}`);
+                  }
+                }
+              }
+              
+              attempts++;
+              await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10 seconds
+            }
+            
+            if (attempts >= maxAttempts) {
+              throw new Error('Timeout waiting for workflow completion');
+            }
 
       - name: Send Slack notification
         if: success()
