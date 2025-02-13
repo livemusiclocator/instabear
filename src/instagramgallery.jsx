@@ -17,10 +17,7 @@ const getMelbourneDate = () => {
   }).split('/').reverse().join('-');
 };
 const getPublicUrl = (path) => {
-  const baseUrl = import.meta.env.MODE === 'production' 
-    ? 'https://livemusiclocator.github.io/instabear'
-    : 'https://lml.live/instabear';  // keeping lml.live for development
-  return `${baseUrl}/${path}`;
+  return `https://lml.live/?dateRange=today`;  // Always use lml.live for the website URL
 };
 // Instagram posting function
 async function postToInstagram(imageUrls, captions) {
@@ -192,8 +189,8 @@ const uploadToGitHub = async (base64Image, filename) => {
       url: result.data?.content?.download_url
     });
 
-    // Generate and return the public URL
-    const publicUrl = `https://lml.live/instabear/${path}`;
+    // Generate and return the GitHub raw URL for direct image access
+    const publicUrl = `https://raw.githubusercontent.com/livemusiclocator/instabear/main/${path}`;
     console.log('Generated public URL:', publicUrl);
     return publicUrl;
 
