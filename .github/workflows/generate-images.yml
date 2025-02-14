@@ -120,22 +120,13 @@ jobs:
 
       - name: Build React app
         run: |
-          # Create .env file for Vite
-          echo "Creating .env file..."
-          cat > .env << EOF
-          VITE_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
-          VITE_INSTAGRAM_ACCESS_TOKEN=${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
-          VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID=${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
-          VITE_SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}
-          EOF
-          
-          # Show .env file (with values masked)
-          echo "Checking .env file (values masked):"
-          sed 's/=.*$/=***/' .env
-          
-          # Build the app with debug output
           echo "Building React app..."
-          DEBUG=vite:* VITE_DEBUG=true npm run build
+          VITE_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+          VITE_INSTAGRAM_ACCESS_TOKEN=${{ secrets.INSTAGRAM_ACCESS_TOKEN }} \
+          VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID=${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }} \
+          VITE_SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }} \
+          VITE_INSTAGRAM_USERNAME=${{ secrets.INSTAGRAM_USERNAME }} \
+          npm run build
           
           # Verify environment variables in build output
           echo "Checking build output for environment variables..."
