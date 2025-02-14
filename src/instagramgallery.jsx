@@ -3,8 +3,15 @@ import PropTypes from 'prop-types';
 import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
 
+// Environment variables
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
+const SLACK_WEBHOOK_URL = import.meta.env.VITE_SLACK_WEBHOOK_URL;
+const INSTAGRAM_USERNAME = import.meta.env.VITE_INSTAGRAM_USERNAME;
+
 const octokit = new Octokit({
-  auth: import.meta.env.VITE_GITHUB_TOKEN
+  auth: GITHUB_TOKEN
 });
 
 
@@ -23,12 +30,9 @@ const getPublicUrl = () => {
 // Instagram posting function
 async function postToInstagram(imageUrls, captions) {
   console.log('Environment variables:', {
-    hasAccessToken: !!import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN,
-    hasBusinessId: !!import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID,
+    hasAccessToken: !!INSTAGRAM_ACCESS_TOKEN,
+    hasBusinessId: !!INSTAGRAM_BUSINESS_ACCOUNT_ID,
   });
-
-  const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
-  const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
 
   console.log('Token analysis:', {
     length: INSTAGRAM_ACCESS_TOKEN?.length,
@@ -137,7 +141,7 @@ async function postToInstagram(imageUrls, captions) {
 }
 
 const uploadToGitHub = async (base64Image, filename) => {
-  console.log('Starting GitHub upload with token present:', !!import.meta.env.VITE_GITHUB_TOKEN);
+  console.log('Starting GitHub upload with token present:', !!GITHUB_TOKEN);
   
   const content = base64Image.split(',')[1];
   const path = `temp-images/${filename}`;
@@ -200,7 +204,7 @@ const uploadToGitHub = async (base64Image, filename) => {
       message: error.message,
       status: error.status,
       response: error.response?.data,
-      token: import.meta.env.VITE_GITHUB_TOKEN ? 'Present' : 'Missing'
+      token: GITHUB_TOKEN ? 'Present' : 'Missing'
     });
     throw new Error(`GitHub upload failed: ${error.message}`);
   }
@@ -600,7 +604,6 @@ const slides = useMemo(() => {
           };
 
           const sendSlackNotification = async (message) => {
-            const SLACK_WEBHOOK_URL = import.meta.env.VITE_SLACK_WEBHOOK_URL;
           
             if (!SLACK_WEBHOOK_URL) {
               console.error('Slack webhook URL is missing. Check your .env file.');
@@ -646,7 +649,7 @@ const slides = useMemo(() => {
                 await cleanupImages();
           
                 // ✅ Send Slack success notification
-                const instagramPostUrl = `https://www.instagram.com/${import.meta.env.VITE_INSTAGRAM_USERNAME}`;
+                const instagramPostUrl = `https://www.instagram.com/${INSTAGRAM_USERNAME}`;
                 await sendSlackNotification(`🎉 *Success!* The daily gig guide was posted to Instagram.\n📌 [View Post](${instagramPostUrl})`);
               } else {
                 setUploadStatus(`Instagram posting failed: ${result.error}`);
