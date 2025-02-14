@@ -57,78 +57,50 @@ jobs:
           
           echo "✓ Time synchronization verified"
 
+      - name: Setup virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          
+          # Start Xvfb
+          Xvfb :99 -screen 0 900x600x24 &
+          export DISPLAY=:99
+          
+          # Wait for Xvfb to start
+          sleep 3
+          
+          # Verify display is working
+          echo "Testing virtual display..."
+          xdpyinfo -display :99 >/dev/null 2>&1 || (echo "Virtual display setup failed" && exit 1)
+          echo "✓ Virtual display ready"
+
       - name: Install Chrome
         uses: browser-actions/setup-chrome@v1
         with:
           chrome-version: stable
 
-      - name: Verify Chrome and graphics configuration
+      - name: Verify Chrome setup
         run: |
           echo "Chrome version:"
           google-chrome --version
-          echo "Chrome location:"
-          which google-chrome
-          echo "Chrome executable permissions:"
-          ls -l $(which google-chrome)
           
-          echo "Checking graphics configuration..."
-          echo "GPU devices:"
-          lspci | grep -i vga || true
-          echo "OpenGL info:"
-          DISPLAY=:0 glxinfo 2>/dev/null || true
-          echo "X11 configuration:"
-          [ -f /etc/X11/xorg.conf ] && cat /etc/X11/xorg.conf || echo "No Xorg config found"
-          
-          echo "Installing graphics debugging tools..."
-          sudo apt-get install -y mesa-utils x11-utils
-          
-          echo "Setting up virtual display..."
-          export DISPLAY=:99
-          sudo Xvfb :99 -screen 0 900x600x24 > /dev/null 2>&1 &
-          sleep 3
-          
-          echo "Testing Chrome rendering..."
-          google-chrome --headless \
+          echo "Testing headless Chrome..."
+          google-chrome \
+            --headless \
             --disable-gpu \
             --no-sandbox \
+            --disable-dev-shm-usage \
             --screenshot=test.png \
             --window-size=540,540 \
             --force-device-scale-factor=1.9 \
-            data:text/html,<html><body>Test</body></html>
+            "data:text/html,<html><body>Test</body></html>"
           
           if [ -f test.png ]; then
-            echo "✓ Chrome rendering test successful"
+            echo "✓ Chrome screenshot test successful"
             file test.png
             rm test.png
           else
-            echo "Chrome rendering test failed"
-            exit 1
-          fi
-          
-          echo "Checking Chrome sandbox configuration..."
-          if [ -f /etc/sysctl.d/10-ptrace.conf ]; then
-            echo "ptrace_scope setting:"
-            cat /etc/sysctl.d/10-ptrace.conf
-          fi
-          
-          echo "Checking Chrome capabilities..."
-          getcap $(which google-chrome) || true
-          
-          echo "Setting up Chrome sandbox..."
-          sudo sysctl -w kernel.unprivileged_userns_clone=1 || true
-          sudo mkdir -p /etc/chrome-sandbox
-          sudo chown root:root $(which google-chrome)
-          sudo chmod 4755 $(which google-chrome)
-          
-          echo "Testing Chrome with sandbox..."
-          google-chrome --headless --disable-gpu --no-sandbox about:blank &
-          CHROME_PID=$!
-          sleep 2
-          if ps -p $CHROME_PID > /dev/null; then
-            echo "✓ Chrome sandbox test successful"
-            kill $CHROME_PID
-          else
-            echo "Chrome sandbox test failed"
+            echo "Chrome screenshot test failed"
             exit 1
           fi
 
