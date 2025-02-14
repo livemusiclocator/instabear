@@ -3,14 +3,14 @@ import PropTypes from 'prop-types';
 import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
 
-import { config } from './config';
+import ENV from './environment';
 
 // Environment variables
-const GITHUB_TOKEN = config.GITHUB_TOKEN;
-const INSTAGRAM_ACCESS_TOKEN = config.INSTAGRAM_ACCESS_TOKEN;
-const INSTAGRAM_BUSINESS_ACCOUNT_ID = config.INSTAGRAM_BUSINESS_ACCOUNT_ID;
-const SLACK_WEBHOOK_URL = config.SLACK_WEBHOOK_URL;
-const INSTAGRAM_USERNAME = config.INSTAGRAM_USERNAME;
+const GITHUB_TOKEN = ENV.GITHUB_TOKEN;
+const INSTAGRAM_ACCESS_TOKEN = ENV.INSTAGRAM_ACCESS_TOKEN;
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = ENV.INSTAGRAM_BUSINESS_ACCOUNT_ID;
+const SLACK_WEBHOOK_URL = ENV.SLACK_WEBHOOK_URL;
+const INSTAGRAM_USERNAME = ENV.INSTAGRAM_USERNAME;
 
 const octokit = new Octokit({
   auth: GITHUB_TOKEN
