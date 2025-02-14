@@ -8,17 +8,8 @@ async function generateImages() {
   let page;
   
   try {
-    // Verify display environment
-    const display = process.env.DISPLAY;
-    if (!display) {
-      throw new Error('DISPLAY environment variable not set');
-    }
-    console.log('Using display:', display);
-    
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    if (!executablePath) {
-      throw new Error('PUPPETEER_EXECUTABLE_PATH environment variable not set');
-    }
+    // Find Chrome executable on macOS
+    const executablePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     console.log('Using Chrome executable:', executablePath);
     
     const launchOptions = {
@@ -54,7 +45,7 @@ async function generateImages() {
     });
 
     console.log('Navigating to local server...');
-    await page.goto('http://localhost:4173', {
+    await page.goto('http://localhost:5173', {
       waitUntil: 'networkidle0',
       timeout: 60000
     });
@@ -82,19 +73,31 @@ async function generateImages() {
     console.log('Title slide found');
     
     // Click Generate Images button
-    const generateButton = await page.$('button:has-text("Generate Images")');
-    if (!generateButton) {
-      throw new Error('Generate Images button not found');
-    }
-    await generateButton.click();
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const button = buttons.find(b => b.textContent.includes('Generate Images'));
+      if (!button) {
+        throw new Error('Generate Images button not found');
+      }
+      button.click();
+    });
 
-    // Wait for completion
+    // Wait for all images to be uploaded
     await page.waitForFunction(
-      () => document.querySelector('.text-sm.text-gray-600')?.textContent?.includes('Images ready'),
+      () => {
+        const uploadStatus = document.querySelector('.text-sm.text-gray-600')?.textContent;
+        return uploadStatus && (
+          uploadStatus.includes('Images ready for Instagram posting') ||
+          uploadStatus.includes('Generating and uploading images...')
+        );
+      },
       { timeout: 60000 }
     );
 
-    console.log('Images generated successfully');
+    // Give a moment for any final uploads to complete
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    console.log('Images generated and uploaded successfully');
 
   } catch (error) {
     console.error('Error generating images:', error);
