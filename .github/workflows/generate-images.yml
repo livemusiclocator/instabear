@@ -121,7 +121,7 @@ jobs:
         run: |
           # Install Node dependencies
           npm install
-          npm install puppeteer-core
+          npm install puppeteer-core serve
           
           # Install minimal font dependencies
           sudo apt-get update
