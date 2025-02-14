@@ -22,40 +22,20 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Verify timezone and time synchronization
+      - name: Verify timezone
         run: |
-          echo "Installing time synchronization tools..."
-          sudo apt-get update
-          sudo apt-get install -y chrony ntpstat
-          
           echo "System timezone:"
           cat /etc/timezone || true
           echo "Current time in Melbourne:"
           TZ=Australia/Melbourne date
-          echo "Current time in UTC:"
-          date -u
           echo "Date used for image generation:"
           TZ=Australia/Melbourne date +'%Y-%m-%d'
           
-          echo "Checking time synchronization status..."
-          sudo systemctl status chronyd || true
-          chronyc tracking || true
-          chronyc sources || true
-          
-          echo "Verifying time drift..."
-          DRIFT=$(chronyc tracking 2>/dev/null | grep "Last offset" | awk '{print $4}')
-          if [ ! -z "$DRIFT" ] && [ $(echo "$DRIFT > 1" | bc -l) -eq 1 ]; then
-            echo "Warning: System time drift is high: $DRIFT seconds"
-            echo "Forcing time synchronization..."
-            sudo chronyc -a 'burst 4/4'
-            sudo chronyc makestep
-          fi
-          
-          echo "Setting consistent timezone for all commands..."
+          echo "Setting timezone..."
           echo "Australia/Melbourne" | sudo tee /etc/timezone
           sudo dpkg-reconfigure --frontend noninteractive tzdata
           
-          echo "✓ Time synchronization verified"
+          echo "✓ Timezone configured"
 
       - name: Setup virtual display
         run: |
