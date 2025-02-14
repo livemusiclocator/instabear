@@ -320,11 +320,12 @@ jobs:
               
               // Check environment variables in browser
               const envVars = await page.evaluate(() => {
+                const env = window.__ENV__ || {};
                 const vars = {
-                  VITE_GITHUB_TOKEN: !!import.meta.env.VITE_GITHUB_TOKEN,
-                  VITE_INSTAGRAM_ACCESS_TOKEN: !!import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN,
-                  VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: !!import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID,
-                  VITE_SLACK_WEBHOOK_URL: !!import.meta.env.VITE_SLACK_WEBHOOK_URL
+                  VITE_GITHUB_TOKEN: !!env.GITHUB_TOKEN,
+                  VITE_INSTAGRAM_ACCESS_TOKEN: !!env.INSTAGRAM_ACCESS_TOKEN,
+                  VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: !!env.INSTAGRAM_BUSINESS_ACCOUNT_ID,
+                  VITE_SLACK_WEBHOOK_URL: !!env.SLACK_WEBHOOK_URL
                 };
                 console.log('Environment variables in browser:', vars);
                 return vars;
