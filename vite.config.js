@@ -10,14 +10,18 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     define: {
-      // Define process.env globally
-      'process.env': {
-        VITE_GITHUB_TOKEN: JSON.stringify(env.VITE_GITHUB_TOKEN),
-        VITE_INSTAGRAM_ACCESS_TOKEN: JSON.stringify(env.VITE_INSTAGRAM_ACCESS_TOKEN),
-        VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: JSON.stringify(env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID),
-        VITE_SLACK_WEBHOOK_URL: JSON.stringify(env.VITE_SLACK_WEBHOOK_URL),
-        VITE_INSTAGRAM_USERNAME: JSON.stringify(env.VITE_INSTAGRAM_USERNAME),
-      },
+      // Define environment variables globally
+      'import.meta.env': JSON.stringify({
+        VITE_GITHUB_TOKEN: env.VITE_GITHUB_TOKEN,
+        VITE_INSTAGRAM_ACCESS_TOKEN: env.VITE_INSTAGRAM_ACCESS_TOKEN,
+        VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID,
+        VITE_SLACK_WEBHOOK_URL: env.VITE_SLACK_WEBHOOK_URL,
+        VITE_INSTAGRAM_USERNAME: env.VITE_INSTAGRAM_USERNAME,
+        MODE: env.MODE,
+        DEV: env.MODE === 'development',
+        PROD: env.MODE === 'production',
+        SSR: false
+      }),
     },
     server: {
       host: true, // Needed for GitHub Actions environment

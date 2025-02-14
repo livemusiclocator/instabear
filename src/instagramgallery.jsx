@@ -4,11 +4,11 @@ import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
 
 // Environment variables
-const GITHUB_TOKEN = process.env.VITE_GITHUB_TOKEN;
-const INSTAGRAM_ACCESS_TOKEN = process.env.VITE_INSTAGRAM_ACCESS_TOKEN;
-const INSTAGRAM_BUSINESS_ACCOUNT_ID = process.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
-const SLACK_WEBHOOK_URL = process.env.VITE_SLACK_WEBHOOK_URL;
-const INSTAGRAM_USERNAME = process.env.VITE_INSTAGRAM_USERNAME;
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
+const SLACK_WEBHOOK_URL = import.meta.env.VITE_SLACK_WEBHOOK_URL;
+const INSTAGRAM_USERNAME = import.meta.env.VITE_INSTAGRAM_USERNAME;
 
 const octokit = new Octokit({
   auth: GITHUB_TOKEN
