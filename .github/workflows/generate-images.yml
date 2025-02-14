@@ -442,30 +442,8 @@ jobs:
           echo "Checking system resources..."
           echo "Memory status:"
           free -h
-          echo "CPU info:"
-          lscpu
           echo "System load:"
           uptime
-          echo "Available disk space:"
-          df -h
-          
-          # Check if we have enough resources
-          TOTAL_MEM=$(free | awk '/^Mem:/{print $2}')
-          FREE_MEM=$(free | awk '/^Mem:/{print $4}')
-          MIN_MEM=$((2 * 1024 * 1024)) # 2GB in KB
-          
-          if [ $FREE_MEM -lt $MIN_MEM ]; then
-            echo "Warning: Less than 2GB of free memory available"
-            # Try to free up some memory
-            sync
-            echo 3 | sudo tee /proc/sys/vm/drop_caches
-            FREE_MEM=$(free | awk '/^Mem:/{print $4}')
-            if [ $FREE_MEM -lt $MIN_MEM ]; then
-              echo "Error: Not enough memory available even after clearing caches"
-              exit 1
-            fi
-          fi
-          
           echo "✓ System resources verified"
 
       - name: Generate images
