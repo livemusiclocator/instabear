@@ -60,19 +60,32 @@ jobs:
       - name: Setup virtual display
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
+          sudo apt-get install -y xvfb x11-utils
           
-          # Start Xvfb
-          Xvfb :99 -screen 0 900x600x24 &
+          # Start Xvfb with debug output
+          echo "Starting Xvfb..."
+          Xvfb :99 -screen 0 900x600x24 -ac > xvfb.log 2>&1 &
           export DISPLAY=:99
           
-          # Wait for Xvfb to start
-          sleep 3
+          # Wait for Xvfb to start and verify
+          echo "Waiting for Xvfb..."
+          for i in {1..10}; do
+            if xdpyinfo -display :99 >/dev/null 2>&1; then
+              echo "✓ Virtual display ready"
+              break
+            fi
+            if [ $i -eq 10 ]; then
+              echo "Virtual display setup failed. Xvfb log:"
+              cat xvfb.log
+              exit 1
+            fi
+            echo "Attempt $i: Display not ready yet..."
+            sleep 1
+          done
           
-          # Verify display is working
-          echo "Testing virtual display..."
-          xdpyinfo -display :99 >/dev/null 2>&1 || (echo "Virtual display setup failed" && exit 1)
-          echo "✓ Virtual display ready"
+          # Show display info
+          echo "Display configuration:"
+          xdpyinfo -display :99 | grep -E "dimensions|resolution|depth"
 
       - name: Install Chrome
         uses: browser-actions/setup-chrome@v1

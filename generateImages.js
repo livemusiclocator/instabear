@@ -8,10 +8,17 @@ async function generateImages() {
   let page;
   
   try {
-    // Ensure we're using the virtual display
-    process.env.DISPLAY = ':99';
+    // Verify display environment
+    const display = process.env.DISPLAY;
+    if (!display) {
+      throw new Error('DISPLAY environment variable not set');
+    }
+    console.log('Using display:', display);
     
     const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    if (!executablePath) {
+      throw new Error('PUPPETEER_EXECUTABLE_PATH environment variable not set');
+    }
     console.log('Using Chrome executable:', executablePath);
     
     const launchOptions = {
