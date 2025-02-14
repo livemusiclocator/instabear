@@ -383,12 +383,15 @@ jobs:
               });
               console.log('Title slide found');
               
-              // Click the Generate Images button
-              const generateButton = await page.$('button:has-text("Generate Images")');
-              if (!generateButton) {
-                throw new Error('Generate Images button not found');
-              }
-              await generateButton.click();
+              // Click Generate Images button
+              await page.evaluate(() => {
+                const buttons = Array.from(document.querySelectorAll('button'));
+                const button = buttons.find(b => b.textContent.includes('Generate Images'));
+                if (!button) {
+                  throw new Error('Generate Images button not found');
+                }
+                button.click();
+              });
 
               // Wait for image generation to complete
               await page.waitForFunction(
