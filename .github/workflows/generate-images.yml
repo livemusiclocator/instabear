@@ -402,7 +402,7 @@ jobs:
           VITE_INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
           VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
           VITE_SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          PUPPETEER_EXECUTABLE_PATH: $(which google-chrome)
+          PUPPETEER_EXECUTABLE_PATH: "/usr/bin/google-chrome"
 
       - name: Verify generated images
         run: |
