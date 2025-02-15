@@ -68,18 +68,20 @@ jobs:
           xdpyinfo -display :99 | grep -E "dimensions|resolution|depth"
 
       - name: Install Chrome
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: stable
-
-      - name: Find Chrome location
         run: |
+          echo "Installing Chrome..."
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          
+          echo "Chrome version:"
+          google-chrome --version
+          
           echo "Chrome binary location:"
           which google-chrome
           echo "Chrome binary details:"
           ls -l $(which google-chrome)
-          echo "Chrome version:"
-          google-chrome --version
 
       - name: Verify Chrome setup
         run: |
