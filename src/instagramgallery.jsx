@@ -3,12 +3,21 @@ import PropTypes from 'prop-types';
 import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
 
-// Environment variables
-const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
-const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
-const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
-const SLACK_WEBHOOK_URL = import.meta.env.VITE_SLACK_WEBHOOK_URL;
-const INSTAGRAM_USERNAME = import.meta.env.VITE_INSTAGRAM_USERNAME;
+// Environment variables from global __ENV__ object
+const GITHUB_TOKEN = window.__ENV__?.VITE_GITHUB_TOKEN;
+const INSTAGRAM_ACCESS_TOKEN = window.__ENV__?.VITE_INSTAGRAM_ACCESS_TOKEN;
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = window.__ENV__?.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
+const SLACK_WEBHOOK_URL = window.__ENV__?.VITE_SLACK_WEBHOOK_URL;
+const INSTAGRAM_USERNAME = window.__ENV__?.VITE_INSTAGRAM_USERNAME;
+
+// Log environment variables on load
+console.log('Environment variables loaded:', {
+  hasGithubToken: !!GITHUB_TOKEN,
+  hasInstagramToken: !!INSTAGRAM_ACCESS_TOKEN,
+  hasInstagramBusinessId: !!INSTAGRAM_BUSINESS_ACCOUNT_ID,
+  hasSlackWebhook: !!SLACK_WEBHOOK_URL,
+  hasInstagramUsername: !!INSTAGRAM_USERNAME
+});
 
 const octokit = new Octokit({
   auth: GITHUB_TOKEN
