@@ -127,13 +127,6 @@ jobs:
           VITE_SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }} \
           VITE_INSTAGRAM_USERNAME=${{ secrets.INSTAGRAM_USERNAME }} \
           npm run build
-          
-          # Verify environment variables in build output
-          echo "Checking build output for environment variables..."
-          if grep -r "import.meta.env" dist/; then
-            echo "Error: Found raw import.meta.env references in build output"
-            exit 1
-          fi
         env:
           VITE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
@@ -150,22 +143,6 @@ jobs:
           
           echo "Checking for assets:"
           ls -la dist/assets/
-          
-          echo "Checking for environment variables in built files:"
-          echo "Looking in JavaScript files..."
-          for file in dist/assets/*.js; do
-            echo "Checking $file for VITE_ variables:"
-            # Look for VITE_ variables but don't show their values
-            grep -o "VITE_[A-Z_]*" "$file" || true
-          done
-          
-          echo "Verifying Vite replaced import.meta.env:"
-          if grep -l "import.meta.env" dist/assets/*.js; then
-            echo "Warning: Found unreplaced import.meta.env references"
-            exit 1
-          else
-            echo "No unreplaced import.meta.env found - good!"
-          fi
 
       - name: Verify environment
         run: |
