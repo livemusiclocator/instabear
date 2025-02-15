@@ -72,6 +72,15 @@ jobs:
         with:
           chrome-version: stable
 
+      - name: Find Chrome location
+        run: |
+          echo "Chrome binary location:"
+          which google-chrome
+          echo "Chrome binary details:"
+          ls -l $(which google-chrome)
+          echo "Chrome version:"
+          google-chrome --version
+
       - name: Verify Chrome setup
         run: |
           echo "Chrome version:"
