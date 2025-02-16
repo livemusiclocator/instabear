@@ -8,6 +8,31 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Initialize environment variables
+      window.__ENV__ = window.__ENV__ || {};
+      
+      // Add error handling
+      window.addEventListener('error', function(event) {
+        console.error('Global error:', {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          error: event.error
+        });
+      });
+
+      // Log initialization
+      console.log('Page initialized, environment:', {
+        userAgent: navigator.userAgent,
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight
+        },
+        timestamp: new Date().toISOString()
+      });
+    </script>
     <script type="module" src="./src/main.jsx"></script>
   </body>
 </html>
