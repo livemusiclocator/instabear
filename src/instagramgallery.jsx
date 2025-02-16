@@ -3,20 +3,18 @@ import PropTypes from 'prop-types';
 import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
 
-// Environment variables from global __ENV__ object
-const GITHUB_TOKEN = window.__ENV__?.VITE_GITHUB_TOKEN;
-const INSTAGRAM_ACCESS_TOKEN = window.__ENV__?.VITE_INSTAGRAM_ACCESS_TOKEN;
-const INSTAGRAM_BUSINESS_ACCOUNT_ID = window.__ENV__?.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
-const SLACK_WEBHOOK_URL = window.__ENV__?.VITE_SLACK_WEBHOOK_URL;
-const INSTAGRAM_USERNAME = window.__ENV__?.VITE_INSTAGRAM_USERNAME;
+// Environment variables from Vite
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN;
+const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = import.meta.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID;
+const ADMIN_TOKEN = import.meta.env.ADMIN_TOKEN;
 
 // Log environment variables on load
 console.log('Environment variables loaded:', {
   hasGithubToken: !!GITHUB_TOKEN,
   hasInstagramToken: !!INSTAGRAM_ACCESS_TOKEN,
   hasInstagramBusinessId: !!INSTAGRAM_BUSINESS_ACCOUNT_ID,
-  hasSlackWebhook: !!SLACK_WEBHOOK_URL,
-  hasInstagramUsername: !!INSTAGRAM_USERNAME
+  hasAdminToken: !!ADMIN_TOKEN
 });
 
 const octokit = new Octokit({
@@ -612,30 +610,10 @@ const slides = useMemo(() => {
             }
           };
 
-          const sendSlackNotification = async (message) => {
-          
-            if (!SLACK_WEBHOOK_URL) {
-              console.error('Slack webhook URL is missing. Check your .env file.');
-              return;
-            }
-          
-            const payload = { text: message };
-          
-            try {
-              const response = await fetch(SLACK_WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-              });
-          
-              if (!response.ok) {
-                throw new Error(`Slack API responded with ${response.status}`);
-              }
-          
-              console.log('Slack notification sent successfully.');
-            } catch (error) {
-              console.error('Failed to send Slack notification:', error);
-            }
+          // Removed Slack notification functionality as it's no longer needed
+          const sendSlackNotification = async () => {
+            // No-op
+            return;
           };
           
               
@@ -657,8 +635,8 @@ const slides = useMemo(() => {
                 // Clean up images after successful post
                 await cleanupImages();
           
-                // ✅ Send Slack success notification
-                const instagramPostUrl = `https://www.instagram.com/${INSTAGRAM_USERNAME}`;
+                // ✅ Send success notification
+                const instagramPostUrl = 'https://www.instagram.com/livemusiclocator';
                 await sendSlackNotification(`🎉 *Success!* The daily gig guide was posted to Instagram.\n📌 [View Post](${instagramPostUrl})`);
               } else {
                 setUploadStatus(`Instagram posting failed: ${result.error}`);

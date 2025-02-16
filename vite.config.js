@@ -20,14 +20,6 @@ export default defineConfig({
   preview: {
     host: true,
   },
-  define: {
-    // Make environment variables available at runtime
-    '__ENV__': {
-      VITE_GITHUB_TOKEN: JSON.stringify(process.env.VITE_GITHUB_TOKEN),
-      VITE_INSTAGRAM_ACCESS_TOKEN: JSON.stringify(process.env.VITE_INSTAGRAM_ACCESS_TOKEN),
-      VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID: JSON.stringify(process.env.VITE_INSTAGRAM_BUSINESS_ACCOUNT_ID),
-      VITE_SLACK_WEBHOOK_URL: JSON.stringify(process.env.VITE_SLACK_WEBHOOK_URL),
-      VITE_INSTAGRAM_USERNAME: JSON.stringify(process.env.VITE_INSTAGRAM_USERNAME),
-    }
-  }
+  // Vite automatically handles import.meta.env variables
+  // No need to manually define them
 });
