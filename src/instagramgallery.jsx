@@ -537,35 +537,7 @@ const slides = useMemo(() => {
               throw err;
             }
           };
-
-          const sendSlackNotification = async (message) => {
-            const SLACK_WEBHOOK_URL = import.meta.env.VITE_SLACK_WEBHOOK_URL;
           
-            if (!SLACK_WEBHOOK_URL) {
-              console.error('Slack webhook URL is missing. Check your .env file.');
-              return;
-            }
-          
-            const payload = { text: message };
-          
-            try {
-              const response = await fetch(SLACK_WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-              });
-          
-              if (!response.ok) {
-                throw new Error(`Slack API responded with ${response.status}`);
-              }
-          
-              console.log('Slack notification sent successfully.');
-            } catch (error) {
-              console.error('Failed to send Slack notification:', error);
-            }
-          };
-          
-              
           const handleInstagramPost = async () => {
             if (!uploadedImages) return;
           
@@ -577,21 +549,11 @@ const slides = useMemo(() => {
               const result = await postToInstagram(uploadedImages.urls, uploadedImages.captions);
               if (result.success) {
                 setUploadStatus('Successfully posted to Instagram!');
-          
-                // ✅ Send Slack success notification
-                const instagramPostUrl = `https://www.instagram.com/${import.meta.env.VITE_INSTAGRAM_USERNAME}`;
-                await sendSlackNotification(`🎉 *Success!* The daily gig guide was posted to Instagram.\n📌 [View Post](${instagramPostUrl})`);
               } else {
                 setUploadStatus(`Instagram posting failed: ${result.error}`);
-          
-                // ❌ Send Slack failure notification
-                await sendSlackNotification(`❌ *Failed to post to Instagram.*\nError: ${result.error}`);
               }
             } catch (err) {
               setUploadStatus(`Instagram posting failed: ${err.message}`);
-          
-              // ❌ Send Slack failure notification
-              await sendSlackNotification(`❌ *Instagram posting failed.*\nError: ${err.message}`);
             } finally {
               setIsPosting(false);
             }

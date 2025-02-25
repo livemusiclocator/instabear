@@ -25,8 +25,25 @@ ssh $PI_USER@$PI_HOST << EOF
         sudo apt install -y chromium-browser chromium-codecs-ffmpeg
     fi
     
+    # Install mail utilities if not already installed
+    if ! command -v sendmail &> /dev/null; then
+        echo "Installing mail utilities..."
+        sudo apt update
+        sudo apt install -y sendmail mailutils
+    fi
+    
     # Navigate to project directory and set up
     cd $PI_PATH
+    
+    # Create .env file with necessary variables if it doesn't exist
+    if [ ! -f .env ]; then
+        echo "Creating .env file with required variables..."
+        cat > .env << ENVFILE
+SLACK_WEBHOOK_URL=your_slack_webhook_url_here
+GITHUB_TOKEN=your_github_token_here
+ENVFILE
+        echo ".env file created. Please update with actual values."
+    fi
     
     # Install project dependencies
     npm install

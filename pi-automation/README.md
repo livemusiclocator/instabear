@@ -47,6 +47,20 @@ The script is configured to:
 - Use headless Chromium browser
 - Log all actions to automation.log
 - Access the GitHub Pages URL for posting
+- Send notifications via Slack and email after posting attempts
+
+### Environment Variables
+
+Create a `.env` file in the project directory with the following variables:
+
+```
+SLACK_WEBHOOK_URL=your_slack_webhook_url_here
+GITHUB_TOKEN=your_github_token_here
+```
+
+These variables are used for:
+- `SLACK_WEBHOOK_URL`: Sending notifications to Slack after posting attempts
+- `GITHUB_TOKEN`: Cleaning up temp-images in the GitHub repository
 
 ## Running the Script
 
@@ -66,6 +80,28 @@ crontab -e
 ```
 0 9 * * * cd /home/insta/instabear_pi && /usr/bin/node pi-automation.js >> /home/insta/instabear_pi/cron.log 2>&1
 ```
+
+## Notifications
+
+The system sends Slack notifications after each posting attempt:
+
+### Slack Notifications
+
+- Notifications are sent to the configured Slack webhook URL
+- Successful posts: Green-colored notification with success status
+- Failed posts: Red-colored notification with failure status and error details
+- All notifications include:
+  - Recent log entries (last 15 lines)
+  - Timestamp and status information
+  - Screenshots of the automation process
+  - Recipient information (gigs@lml.live)
+
+### Troubleshooting Slack Notifications
+
+If notifications are not being received:
+1. Check the SLACK_WEBHOOK_URL in the .env file
+2. Verify internet connectivity on the Raspberry Pi
+3. Check the automation.log for any Slack-related error messages
 
 ## Logging
 
@@ -96,6 +132,7 @@ crontab -e
 - Monitor disk space usage
 - Keep system packages updated
 - Consider setting up log rotation
+- Update Slack webhook URL if needed
 
 ## Recovery
 
