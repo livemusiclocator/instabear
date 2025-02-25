@@ -1,0 +1,13 @@
+{
+  "name": "pi-automation",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Raspberry Pi automation for Instagram posting",
+  "main": "pi-automation.js",
+  "scripts": {
+    "start": "node pi-automation.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0"
+  }
+}
