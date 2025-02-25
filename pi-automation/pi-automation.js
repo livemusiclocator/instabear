@@ -29,10 +29,16 @@ async function automate() {
         browser = await puppeteer.launch({
             headless: 'new',
             executablePath: '/usr/bin/chromium-browser', // Raspberry Pi Chromium path
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            protocolTimeout: 180000  // 3 minutes instead of default 30 seconds
         });
 
         const page = await browser.newPage();
+        
+        // Listen for console events and log them
+        page.on('console', msg => {
+            log(`Browser console [${msg.type()}]: ${msg.text()}`);
+        });
         
         // Set viewport
         await page.setViewport({ width: 1280, height: 800 });
@@ -69,8 +75,13 @@ async function automate() {
         await page.screenshot({ path: 'after-post-click.png' });
         log('Took screenshot after clicking post button');
         
-        // Wait for posting to complete
-        await page.waitForTimeout(10000); // Adjust timing as needed
+        // Wait for posting to complete - increased to 2 minutes
+        log('Waiting for posting to complete (2 minutes)...');
+        await page.waitForTimeout(120000);
+        
+        // Take a final screenshot after waiting
+        await page.screenshot({ path: 'after-waiting.png' });
+        log('Took final screenshot after waiting');
 
         log('Automation completed successfully');
 

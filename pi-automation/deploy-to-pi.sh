@@ -40,3 +40,40 @@ ssh $PI_USER@$PI_HOST << EOF
 EOF
 
 echo "Deployment complete!"
+
+# Function to run automation and retrieve screenshots
+run_and_get_screenshots() {
+    echo "Running automation on Pi..."
+    ssh $PI_USER@$PI_HOST "cd $PI_PATH && npm start"
+    
+    echo "Retrieving screenshots and logs..."
+    mkdir -p ./screenshots
+    scp $PI_USER@$PI_HOST:$PI_PATH/page-loaded.png ./screenshots/
+    scp $PI_USER@$PI_HOST:$PI_PATH/after-post-click.png ./screenshots/
+    scp $PI_USER@$PI_HOST:$PI_PATH/automation.log ./screenshots/
+    
+    echo "Screenshots and logs saved to ./screenshots/"
+    echo "You can view them by opening the files in the screenshots directory"
+}
+
+# Add a new script to retrieve just the screenshots and logs
+get_screenshots() {
+    echo "Retrieving screenshots and logs..."
+    mkdir -p ./screenshots
+    scp $PI_USER@$PI_HOST:$PI_PATH/page-loaded.png ./screenshots/
+    scp $PI_USER@$PI_HOST:$PI_PATH/after-post-click.png ./screenshots/
+    scp $PI_USER@$PI_HOST:$PI_PATH/automation.log ./screenshots/
+    
+    echo "Screenshots and logs saved to ./screenshots/"
+    echo "You can view them by opening the files in the screenshots directory"
+}
+
+# If script is called with "run" argument, run automation and get screenshots
+if [ "$1" = "run" ]; then
+    run_and_get_screenshots
+fi
+
+# If script is called with "screenshots" argument, just get screenshots
+if [ "$1" = "screenshots" ]; then
+    get_screenshots
+fi
