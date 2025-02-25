@@ -569,10 +569,7 @@ const slides = useMemo(() => {
           const handleInstagramPost = async () => {
             if (!uploadedImages) return;
           
-            if (!confirm('Are you sure you want to post this to Instagram? This action cannot be undone.')) {
-              return;
-            }
-          
+            // Removed confirmation dialog for automation
             setIsPosting(true);
             setUploadStatus('Posting to Instagram...');
           
