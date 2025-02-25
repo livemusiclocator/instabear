@@ -653,6 +653,7 @@ const slides = useMemo(() => {
               {/* Actions and status */}
               <div className="text-center mt-8 space-y-4">
                 <button
+                  id="generate-images-btn"
                   onClick={renderSlidesToImages}
                   disabled={isPosting}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -663,6 +664,7 @@ const slides = useMemo(() => {
                 {uploadedImages && (
                   <div>
                     <button
+                      id="post-instagram-btn"
                       onClick={handleInstagramPost}
                       disabled={isPosting}
                       className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
