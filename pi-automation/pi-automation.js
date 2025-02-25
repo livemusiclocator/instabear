@@ -37,25 +37,37 @@ async function automate() {
         // Set viewport
         await page.setViewport({ width: 1280, height: 800 });
 
-        // Navigate to the GitHub Pages URL
+        // Navigate to the GitHub Pages URL with cache-busting parameter
+        const timestamp = new Date().getTime();
         log('Navigating to GitHub Pages');
-        await page.goto(GITHUB_PAGES_URL, { waitUntil: 'networkidle0' });
+        await page.goto(`${GITHUB_PAGES_URL}?nocache=${timestamp}`, { 
+            waitUntil: 'networkidle0',
+            timeout: 60000 // 60 seconds timeout for page load
+        });
+        
+        // Take a screenshot for debugging
+        await page.screenshot({ path: 'page-loaded.png' });
+        log('Took screenshot of loaded page');
 
         // Wait for any necessary elements and perform actions
-        // Note: You'll need to update these selectors based on your actual page structure
         log('Waiting for page to be ready');
-        await page.waitForSelector('button:has-text("Generate Images")', { timeout: 30000 });
+        await page.waitForSelector('#generate-images-btn', { timeout: 60000 });
         
         // Click generate button
         log('Clicking generate button');
-        await page.click('button:has-text("Generate Images")');
+        await page.click('#generate-images-btn');
         
-        // Wait for generation to complete
-        await page.waitForTimeout(5000); // Adjust timing as needed
+        // Wait for generation to complete and post button to appear
+        log('Waiting for post button to appear');
+        await page.waitForSelector('#post-instagram-btn', { timeout: 60000 });
         
         // Click post button
         log('Clicking post button');
-        await page.click('button:has-text("Post to Instagram")');
+        await page.click('#post-instagram-btn');
+        
+        // Take a screenshot after clicking post button
+        await page.screenshot({ path: 'after-post-click.png' });
+        log('Took screenshot after clicking post button');
         
         // Wait for posting to complete
         await page.waitForTimeout(10000); // Adjust timing as needed
