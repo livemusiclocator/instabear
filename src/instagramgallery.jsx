@@ -254,6 +254,7 @@ function formatPrice(gig) {
 // Caption generator
 function generateCaption(slideGigs, slideIndex, totalSlides, date) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
+    timeZone: 'Australia/Melbourne',
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -366,6 +367,7 @@ TitleSlide.propTypes = {
 // TitleSlide Component
 function TitleSlide({ date }) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
+    timeZone: 'Australia/Melbourne',
     weekday: 'long',
     month: 'long',
     day: 'numeric',
@@ -376,10 +378,10 @@ function TitleSlide({ date }) {
     <div className="title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-center">
     <img src="./lml-logo.png" alt="Live Music Locator" className="w-36 h-36 mb-12" />       <div className="text-center px-12">
         <div className="-space-y-8">
-          <h1 className="text-white text-[2.7rem] font-bold">Fitzroy</h1>
-          <h1 className="text-white text-[2.7rem] font-bold mb-6">Collingwood</h1>
-          <h1 className="text-white text-[2.7rem] font-bold mb-6">St Kilda</h1>
-          <h1 className="text-white text-[2.7rem] font-bold mb-6">Richmond</h1>
+          <h1 className="text-white text-[2.565rem] font-bold">Fitzroy</h1>
+          <h1 className="text-white text-[2.565rem] font-bold mb-6">Collingwood</h1>
+          <h1 className="text-white text-[2.565rem] font-bold mb-6">St Kilda</h1>
+          <h1 className="text-white text-[2.565rem] font-bold mb-6">Richmond</h1>
 
 
         </div>
@@ -588,7 +590,10 @@ const slides = useMemo(() => {
                     >
                       <div className="h-12 px-4 flex items-center justify-between border-b border-gray-700">
                         <h2 className="text-white text-2xl font-bold">
-                          {new Date(date).toLocaleDateString('en-US', { weekday: 'long' })}
+                          {new Date(date).toLocaleDateString('en-US', { 
+                            timeZone: 'Australia/Melbourne',
+                            weekday: 'long' 
+                          })}
                         </h2>
                         <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">
                           {slideIndex + 1} / {slides.length}
