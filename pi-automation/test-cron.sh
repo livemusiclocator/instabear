@@ -13,6 +13,7 @@ if [ $TEST_MINUTE -lt $CURRENT_MINUTE ]; then
     TEST_HOUR=$(( (CURRENT_HOUR + 1) % 24 ))
 fi
 
+
 # Define the cron job
 CRON_JOB="$TEST_MINUTE $TEST_HOUR * * * cd /home/insta/instabear_pi && /usr/bin/node /home/insta/instabear_pi/pi-automation.js >> /home/insta/instabear_pi/cron.log 2>&1"
 
