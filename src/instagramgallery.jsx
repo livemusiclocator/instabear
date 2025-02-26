@@ -375,9 +375,12 @@ function TitleSlide({ date }) {
   });
 
   return (
-    <div className="title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-center">
-    <img src="./lml-logo.png" alt="Live Music Locator" className="w-36 h-36 mb-12" />       <div className="text-center px-12">
-        <div className="-space-y-4">
+    <div className="title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center">
+      <div className="mt-24 mb-8">
+        <img src="./lml-logo.png" alt="Live Music Locator" className="w-36 h-36" />
+      </div>
+      <div className="text-center px-12">
+        <div className="-space-y-3.5">
           <h1 className="text-white text-[2.4rem] font-bold">Fitzroy</h1>
           <h1 className="text-white text-[2.4rem] font-bold mb-6">Collingwood</h1>
           <h1 className="text-white text-[2.4rem] font-bold mb-6">St Kilda</h1>
