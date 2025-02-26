@@ -2,6 +2,33 @@
 
 This script automates the process of generating and posting Instagram content using a Raspberry Pi.
 
+## System Architecture
+
+### Raspberry Pi's Role
+- Acts as the automation server that runs on a schedule (7:45 AM daily)
+- Executes a headless browser to interact with the web interface
+- Handles the entire posting workflow automatically without human intervention
+- Takes screenshots during the process for verification
+- Sends Slack notifications with local Melbourne timestamps
+- Cleans up temporary files after successful posting
+- Provides logging and error handling
+
+### GitHub's Role
+- Hosts the web application via GitHub Pages
+- Stores the source code for both the web app and automation scripts
+- Serves as temporary storage for the carousel images
+- Provides version control and change tracking
+- Enables the @octokit/rest API to programmatically manage repository content
+- Allows the Pi to clean up temp-images after successful posting
+
+### Overall Workflow
+1. The Pi's cron job triggers at 7:45 AM Melbourne time
+2. The Pi launches a headless browser and navigates to the GitHub Pages URL
+3. The browser generates carousel images and uploads them to GitHub
+4. The browser posts the images to Instagram via the Meta Graph API
+5. The Pi cleans up temporary images from the GitHub repository
+6. The Pi sends a Slack notification with the results and local timestamp
+
 ## Prerequisites
 
 1. Raspberry Pi running Raspberry Pi OS (Debian-based)
@@ -47,7 +74,7 @@ The script is configured to:
 - Use headless Chromium browser
 - Log all actions to automation.log
 - Access the GitHub Pages URL for posting
-- Send notifications via Slack and email after posting attempts
+- Send notifications via Slack after posting attempts
 
 ### Environment Variables
 
@@ -61,6 +88,14 @@ GITHUB_TOKEN=your_github_token_here
 These variables are used for:
 - `SLACK_WEBHOOK_URL`: Sending notifications to Slack after posting attempts
 - `GITHUB_TOKEN`: Cleaning up temp-images in the GitHub repository
+
+### Dependencies
+
+The script relies on the following key dependencies:
+- puppeteer: For browser automation
+- @octokit/rest: For GitHub repository management
+- node-fetch: For making HTTP requests
+- dotenv: For loading environment variables
 
 ## Running the Script
 
@@ -76,9 +111,9 @@ npm start
 crontab -e
 ```
 
-2. Add a cron job (example for running daily at 9 AM):
+2. Add a cron job (runs daily at 7:45 AM):
 ```
-0 9 * * * cd /home/insta/instabear_pi && /usr/bin/node pi-automation.js >> /home/insta/instabear_pi/cron.log 2>&1
+45 7 * * * cd /home/insta/instabear_pi && /usr/bin/node pi-automation.js >> /home/insta/instabear_pi/cron.log 2>&1
 ```
 
 ## Notifications
@@ -92,7 +127,8 @@ The system sends Slack notifications after each posting attempt:
 - Failed posts: Red-colored notification with failure status and error details
 - All notifications include:
   - Recent log entries (last 15 lines)
-  - Timestamp and status information
+  - Local Melbourne timestamp in human-readable format
+  - Status information
   - Screenshots of the automation process
   - Recipient information (gigs@lml.live)
 
@@ -125,6 +161,7 @@ If notifications are not being received:
    - Memory issues: Consider adding swap space
    - Permission issues: Ensure proper file ownership
    - Network issues: Check internet connectivity
+   - Missing dependencies: Ensure @octokit/rest is installed
 
 ## Maintenance
 
