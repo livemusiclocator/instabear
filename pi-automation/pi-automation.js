@@ -42,7 +42,11 @@ async function sendSlackNotification(success, error = null) {
         // Prepare status text and color
         const status = success ? 'Success' : 'Failed';
         const color = success ? '#36a64f' : '#ff0000';
-        const timestamp = new Date().toISOString();
+        const timestamp = new Date().toLocaleString('en-AU', {
+            timeZone: 'Australia/Melbourne',
+            dateStyle: 'full',
+            timeStyle: 'long'
+        });
         
         // Get recent logs (last 15 lines)
         let logExcerpt = '';
