@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+/* eslint-disable no-unused-vars */
+import React from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+/* eslint-enable no-unused-vars */
 import PropTypes from 'prop-types';
 import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
@@ -7,7 +10,9 @@ const octokit = new Octokit({
   auth: import.meta.env.VITE_GITHUB_TOKEN
 });
 
-
+// Postcode definitions
+const ST_KILDA_POSTCODES = ['3182', '3183', '3185'];
+const FITZROY_RICHMOND_POSTCODES = ['3065', '3066', '3067', '3068', '3121'];
 
 const getMelbourneDate = () => {
   return new Date().toLocaleDateString('en-AU', { 
@@ -17,9 +22,11 @@ const getMelbourneDate = () => {
     day: '2-digit'
   }).split('/').reverse().join('-');
 };
+
 const getPublicUrl = () => {
   return `https://lml.live/?dateRange=today`;  // Always use lml.live for the website URL
 };
+
 // Instagram posting function
 async function postToInstagram(imageUrls, captions) {
   console.log('Environment variables:', {
@@ -38,7 +45,6 @@ async function postToInstagram(imageUrls, captions) {
     containsNewlines: INSTAGRAM_ACCESS_TOKEN?.includes('\n')
   });
 
-
   try {
     console.log('Starting Instagram post process with URLs:', imageUrls);
 
@@ -46,7 +52,6 @@ async function postToInstagram(imageUrls, captions) {
       throw new Error('Missing Instagram credentials');
     }
 
-    
     // Step 1: Upload each image and get media IDs
     const mediaIds = [];
     for (const imageUrl of imageUrls) {
@@ -243,6 +248,11 @@ function getSuburb(address) {
   return match ? match[1].trim() : '';
 }
 
+function getPostcode(address) {
+  const match = address.match(/\b(\d{4})\b/);
+  return match ? match[1] : '';
+}
+
 function formatPrice(gig) {
   if (gig.information_tags?.includes('free')) return 'Free';
   if (gig.prices && gig.prices.length > 0) {
@@ -253,7 +263,7 @@ function formatPrice(gig) {
 }
 
 // Caption generator
-function generateCaption(slideGigs, slideIndex, totalSlides, date) {
+function generateCaption(slideGigs, slideIndex, totalSlides, date, location) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     timeZone: 'Australia/Melbourne',
     weekday: 'long',
@@ -263,7 +273,7 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date) {
   });
 
   let caption = `More information here: ${getPublicUrl('?dateRange=today')}\n\n`;
-  caption += `🎵 Live Music Locator - ${formattedDate}\n`;
+  caption += `🎵 Live Music Locator - ${location} - ${formattedDate}\n`;
   caption += `Slide ${slideIndex + 1} of ${totalSlides}\n\n`;
   caption += slideGigs
     .map(gig => `🎤 ${gig.name} @ ${gig.venue.name} - ${gig.start_time}`)
@@ -360,13 +370,15 @@ function GigPanel({ gig, isLast }) {
   );
 }
 
-// Define prop types for TitleSlide
-TitleSlide.propTypes = {
-  date: PropTypes.string.isRequired
+// Define prop types for LocationTitleSlide
+LocationTitleSlide.propTypes = {
+  date: PropTypes.string.isRequired,
+  location: PropTypes.string.isRequired,
+  className: PropTypes.string
 };
 
-// TitleSlide Component
-function TitleSlide({ date }) {
+// LocationTitleSlide Component
+function LocationTitleSlide({ date, location, className = "" }) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     timeZone: 'Australia/Melbourne',
     weekday: 'long',
@@ -376,20 +388,21 @@ function TitleSlide({ date }) {
   });
 
   return (
-    <div className="title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center">
+    <div className={`location-title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center ${className}`}>
       <div className="mt-6 mb-4">
         <img src="./lml-logo.png" alt="Live Music Locator" className="w-32 h-32" />
       </div>
       <div className="text-center px-12">
-        <div className="-space-y-5">
-          <h1 className="text-white text-[2.2rem] font-bold">Fitzroy</h1>
-          <h1 className="text-white text-[2.2rem] font-bold mb-2">Collingwood</h1>
-          <h1 className="text-white text-[2.2rem] font-bold mb-2">St Kilda</h1>
-          <h1 className="text-white text-[2.2rem] font-bold mb-2">Richmond</h1>
-
-
-        </div>
-        <h2 className="text-white text-[2.2rem] mb-2">
+        {location === "St Kilda" ? (
+          <h1 className="text-white text-[3.5rem] font-bold mb-6">St Kilda</h1>
+        ) : (
+          <div className="-space-y-5">
+            <h1 className="text-white text-[2.2rem] font-bold">Fitzroy</h1>
+            <h1 className="text-white text-[2.2rem] font-bold mb-2">Collingwood</h1>
+            <h1 className="text-white text-[2.2rem] font-bold mb-2">Richmond</h1>
+          </div>
+        )}
+        <h2 className="text-white text-[2.2rem] mb-4">
           Gig Guide
         </h2>
         <p className="text-[1.71rem]" style={{ color: BRAND_BLUE }}>
@@ -400,89 +413,57 @@ function TitleSlide({ date }) {
   );
 }
 
-// Main InstagramGallery Component
-export default function InstagramGallery() {
-  // Basic state
-  const [date, setDate] = useState(getMelbourneDate());
-  const [gigs, setGigs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+// Define prop types for Carousel
+Carousel.propTypes = {
+  title: PropTypes.string.isRequired,
+  location: PropTypes.string.isRequired,
+  date: PropTypes.string.isRequired,
+  gigs: PropTypes.array.isRequired,
+  id: PropTypes.string.isRequired
+};
 
-// Fetch gigs
-const fetchGigs = useCallback(async (selectedDate) => {
-  setLoading(true);
-  setError(null);
-  try {
-    console.log(`Fetching gigs for ${selectedDate}...`);
-    const response = await fetch(
-      `https://api.lml.live/gigs/query?location=melbourne&date_from=${selectedDate}&date_to=${selectedDate}`
+// Carousel Component
+function Carousel({ 
+  title, 
+  location, 
+  date, 
+  gigs, 
+  id 
+}) {
+  // Refs to each slide DOM element
+  const slideRefs = useRef([]);
+  
+  // State for this carousel
+  const [uploadedImages, setUploadedImages] = useState(null);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
 
-    );
-    console.log(`API URL: https://api.lml.live/gigs/query?location=melbourne&date_from=${selectedDate}&date_to=${selectedDate}`);
+  // Build slides
+  const slides = useMemo(() => {
+    const result = [];
+    let currentSlide = [];
+    let currentHeight = 0;
 
+    gigs.forEach(gig => {
+      const nameLines = Math.ceil(gig.name.length / 35);
+      const gigHeight = 64 + (nameLines - 1) * 24 + 8;
 
-    const data = await response.json();
-    const validGigs = data.map(gig => ({
-      ...gig,
-      start_time: gig.start_time || '23:59'
-    }));
-    const sortedGigs = validGigs.sort((a, b) =>
-      a.start_time.localeCompare(b.start_time)
-    );
-    setGigs(sortedGigs);
-  } catch (err) {
-    setError(err.message);
-  }
-  setLoading(false);
-}, []);
+      if (currentHeight + gigHeight > CONTAINER_HEIGHT) {
+        result.push(currentSlide);
+        currentSlide = [gig];
+        currentHeight = gigHeight;
+      } else {
+        currentSlide.push(gig);
+        currentHeight += gigHeight;
+      }
+    });
 
-useEffect(() => {
-  fetchGigs(date);
-
-  const interval = setInterval(() => {
-    const newDate = getMelbourneDate();
-    if (newDate !== date) {
-      setDate(newDate);
-      fetchGigs(newDate);
-    }
-  }, 60000);
-
-  return () => clearInterval(interval);
-}, [date, fetchGigs]);
-// Refs to each slide DOM element
-const slideRefs = useRef([]);
-
-// Additional state for uploading/posting
-const [uploadedImages, setUploadedImages] = useState(null);
-const [uploadStatus, setUploadStatus] = useState('');
-const [isPosting, setIsPosting] = useState(false);
-
-// Build slides
-const slides = useMemo(() => {
-  const result = [];
-  let currentSlide = [];
-  let currentHeight = 0;
-
-  gigs.forEach(gig => {
-    const nameLines = Math.ceil(gig.name.length / 35);
-    const gigHeight = 64 + (nameLines - 1) * 24 + 8;
-
-    if (currentHeight + gigHeight > CONTAINER_HEIGHT) {
+    if (currentSlide.length > 0) {
       result.push(currentSlide);
-      currentSlide = [gig];
-      currentHeight = gigHeight;
-    } else {
-      currentSlide.push(gig);
-      currentHeight += gigHeight;
     }
-  });
 
-  if (currentSlide.length > 0) {
-    result.push(currentSlide);
-  }
-
-  return result;
-}, [gigs]);
+    return result;
+  }, [gigs]);
 
   // Render slides to images
   const renderSlidesToImages = async () => {
@@ -501,11 +482,11 @@ const slides = useMemo(() => {
       };
 
       // Title slide
-      const titleSlide = document.querySelector('.title-slide');
+      const titleSlide = document.querySelector(`.location-title-slide-${id}`);
       if (titleSlide) {
         const dataUrl = await toPng(titleSlide, options);
         const formattedDate = date.replace(/-/g, '');
-        const filename = `gigs_${formattedDate}_carousel0.png`;
+        const filename = `gigs_${formattedDate}_${id}_carousel0.png`;
 
         const githubUrl = await uploadToGitHub(dataUrl, filename);
         imageUrls.push(githubUrl);
@@ -513,150 +494,249 @@ const slides = useMemo(() => {
         const titleCaption = `Live Music Locator is a not-for-profit service designed to make it possible to discover every gig playing at every venue across every genre at any one time. 
         This information will always be verified and free, importantly supporting musicians, our small to medium live music venues, and you the punters.
         More detailed gig information here: https://lml.live/?dateRange=today`;
-                captions.push(titleCaption);
-              }
-        
-              // Gig slides
-              for (let i = 0; i < slideRefs.current.length; i++) {
-                const slide = slideRefs.current[i];
-                if (slide) {
-                  const dataUrl = await toPng(slide, options);
-                  const formattedDate = date.replace(/-/g, '');
-                  const filename = `gigs_${formattedDate}_carousel${i + 1}.png`;
-        
-                  const githubUrl = await uploadToGitHub(dataUrl, filename);
-                  imageUrls.push(githubUrl);
-        
-                  const caption = generateCaption(slides[i], i, slides.length, date);
-                  captions.push(caption);
-                }
-              }
-        
-              console.log('Uploaded Image URLs:', imageUrls);
-              setUploadedImages({ urls: imageUrls, captions });
-              setUploadStatus('Images ready for Instagram posting');
-        
-              return imageUrls;
-            } catch (err) {
-              console.error('Error rendering and uploading slides:', err);
-              setUploadStatus(`Error: ${err.message}`);
-              throw err;
-            }
-          };
-          
-          const handleInstagramPost = async () => {
-            if (!uploadedImages) return;
-          
-            // Removed confirmation dialog for automation
-            setIsPosting(true);
-            setUploadStatus('Posting to Instagram...');
-          
-            try {
-              const result = await postToInstagram(uploadedImages.urls, uploadedImages.captions);
-              if (result.success) {
-                setUploadStatus('Successfully posted to Instagram!');
-              } else {
-                setUploadStatus(`Instagram posting failed: ${result.error}`);
-              }
-            } catch (err) {
-              setUploadStatus(`Instagram posting failed: ${err.message}`);
-            } finally {
-              setIsPosting(false);
-            }
-          };
-          
-        
-          return (
-            <div className="min-h-screen bg-white p-8">
-              <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="text-gray-900">
-                    {loading ? (
-                      <span>Loading...</span>
-                    ) : (
-                      <span>{gigs.length} gigs found</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-        
-              <div className="max-w-7xl mx-auto">
-                <div className="grid grid-cols-2 gap-8">
-                  {/* Title slide */}
-                  <TitleSlide date={date} />
-        
-                  {/* Gig slides */}
-                  {slides.map((slideGigs, slideIndex) => (
-                    <div
-                      key={slideIndex}
-                      ref={(el) => (slideRefs.current[slideIndex] = el)}
-                      className="w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative"
-                    >
-                      <div className="h-12 px-4 flex items-center justify-between border-b border-gray-700">
-                        <h2 className="text-white text-2xl font-bold">
-                          {new Date(date).toLocaleDateString('en-US', { 
-                            timeZone: 'Australia/Melbourne',
-                            weekday: 'long' 
-                          })}
-                        </h2>
-                        <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">
-                          {slideIndex + 1} / {slides.length}
-                        </p>
-                      </div>
-        
-                      <div className="px-3 py-2 relative h-[476px]">
-                        {slideGigs.map((gig, index) => (
-                          <GigPanel
-                            key={index}
-                            gig={gig}
-                            isLast={index === slideGigs.length - 1}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-        
-              {/* Actions and status */}
-              <div className="text-center mt-8 space-y-4">
-                <button
-                  id="generate-images-btn"
-                  onClick={renderSlidesToImages}
-                  disabled={isPosting}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Generate Images
-                </button>
-        
-                {uploadedImages && (
-                  <div>
-                    <button
-                      id="post-instagram-btn"
-                      onClick={handleInstagramPost}
-                      disabled={isPosting}
-                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                    >
-                      Post to Instagram
-                    </button>
-                    <p className="text-sm text-gray-600 mt-2">
-                      Review the images above before posting
-                    </p>
-                  </div>
-                )}
-        
-                {uploadStatus && (
-                  <div className="text-sm text-gray-600">
-                    {uploadStatus}
-                  </div>
-                )}
-              </div>
-        
-              {error && (
-                <div className="text-red-500 text-center mt-4">
-                  Error: {error}
-                </div>
-              )}
-            </div>
-          );
+        captions.push(titleCaption);
+      }
+      
+      // Gig slides - limit to 9 slides (10 total with title slide)
+      const maxSlides = Math.min(slideRefs.current.length, 9);
+      for (let i = 0; i < maxSlides; i++) {
+        const slide = slideRefs.current[i];
+        if (slide) {
+          const dataUrl = await toPng(slide, options);
+          const formattedDate = date.replace(/-/g, '');
+          const filename = `gigs_${formattedDate}_${id}_carousel${i + 1}.png`;
+
+          const githubUrl = await uploadToGitHub(dataUrl, filename);
+          imageUrls.push(githubUrl);
+
+          const caption = generateCaption(slides[i], i, maxSlides, date, location);
+          captions.push(caption);
         }
+      }
+
+      console.log('Uploaded Image URLs:', imageUrls);
+      setUploadedImages({ urls: imageUrls, captions });
+      setUploadStatus('Images ready for Instagram posting');
+
+      return imageUrls;
+    } catch (err) {
+      console.error('Error rendering and uploading slides:', err);
+      setUploadStatus(`Error: ${err.message}`);
+      throw err;
+    }
+  };
+  
+  const handleInstagramPost = async () => {
+    if (!uploadedImages) return;
+  
+    setIsPosting(true);
+    setUploadStatus('Posting to Instagram...');
+  
+    try {
+      const result = await postToInstagram(uploadedImages.urls, uploadedImages.captions);
+      if (result.success) {
+        setUploadStatus('Successfully posted to Instagram!');
+      } else {
+        setUploadStatus(`Instagram posting failed: ${result.error}`);
+      }
+    } catch (err) {
+      setUploadStatus(`Instagram posting failed: ${err.message}`);
+    } finally {
+      setIsPosting(false);
+    }
+  };
+
+  return (
+    <div className="mb-16 pb-8 border-b border-gray-300">
+      <h2 className="text-2xl font-bold mb-6 text-center">{title}</h2>
+      <div className="grid grid-cols-2 gap-8">
+        {/* Title slide */}
+        <LocationTitleSlide 
+          date={date} 
+          location={location} 
+          className={`location-title-slide-${id}`}
+        />
+
+        {/* Gig slides - limit to 9 slides (10 total with title) */}
+        {slides.slice(0, 9).map((slideGigs, slideIndex) => (
+          <div
+            key={slideIndex}
+            ref={(el) => (slideRefs.current[slideIndex] = el)}
+            className="w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative"
+          >
+            <div className="h-12 px-4 flex items-center justify-between border-b border-gray-700">
+              <h2 className="text-white text-2xl font-bold">
+                {new Date(date).toLocaleDateString('en-US', { 
+                  timeZone: 'Australia/Melbourne',
+                  weekday: 'long' 
+                })}
+              </h2>
+              <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">
+                {slideIndex + 1} / {Math.min(slides.length, 9)}
+              </p>
+            </div>
+
+            <div className="px-3 py-2 relative h-[476px]">
+              {slideGigs.map((gig, index) => (
+                <GigPanel
+                  key={index}
+                  gig={gig}
+                  isLast={index === slideGigs.length - 1}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Actions and status */}
+      <div className="text-center mt-8 space-y-4">
+        <div className="text-gray-700 mb-2">
+          {gigs.length} gigs found for {location}
+        </div>
+        <button
+          id={`generate-images-btn-${id}`}
+          onClick={renderSlidesToImages}
+          disabled={isPosting}
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Generate Images
+        </button>
+
+        {uploadedImages && (
+          <div>
+            <button
+              id={`post-instagram-btn-${id}`}
+              onClick={handleInstagramPost}
+              disabled={isPosting}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Post to Instagram
+            </button>
+            <p className="text-sm text-gray-600 mt-2">
+              Review the images above before posting
+            </p>
+          </div>
+        )}
+
+        {uploadStatus && (
+          <div className="text-sm text-gray-600">
+            {uploadStatus}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Main InstagramGallery Component
+export default function InstagramGallery() {
+  // Basic state
+  const [date, setDate] = useState(getMelbourneDate());
+  const [gigs, setGigs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch gigs
+  const fetchGigs = useCallback(async (selectedDate) => {
+    setLoading(true);
+    setError(null);
+    try {
+      console.log(`Fetching gigs for ${selectedDate}...`);
+      const response = await fetch(
+        `https://api.lml.live/gigs/query?location=melbourne&date_from=${selectedDate}&date_to=${selectedDate}`
+      );
+      console.log(`API URL: https://api.lml.live/gigs/query?location=melbourne&date_from=${selectedDate}&date_to=${selectedDate}`);
+
+      const data = await response.json();
+      const validGigs = data.map(gig => ({
+        ...gig,
+        start_time: gig.start_time || '23:59'
+      }));
+      const sortedGigs = validGigs.sort((a, b) =>
+        a.start_time.localeCompare(b.start_time)
+      );
+      setGigs(sortedGigs);
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchGigs(date);
+
+    const interval = setInterval(() => {
+      const newDate = getMelbourneDate();
+      if (newDate !== date) {
+        setDate(newDate);
+        fetchGigs(newDate);
+      }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [date, fetchGigs]);
+
+  // Filter gigs by location
+  const stKildaGigs = useMemo(() => {
+    return gigs.filter(gig => {
+      const postcode = getPostcode(gig.venue.address);
+      return ST_KILDA_POSTCODES.includes(postcode);
+    });
+  }, [gigs]);
+
+  const fitzroyRichmondGigs = useMemo(() => {
+    return gigs.filter(gig => {
+      const postcode = getPostcode(gig.venue.address);
+      return FITZROY_RICHMOND_POSTCODES.includes(postcode);
+    });
+  }, [gigs]);
+
+  return (
+    <div className="min-h-screen bg-white p-8">
+      <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
+        <div className="flex items-center gap-4 justify-center">
+          <div className="text-gray-900">
+            {loading ? (
+              <span>Loading gigs...</span>
+            ) : (
+              <span>{gigs.length} total gigs found</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto">
+        {loading ? (
+          <div className="text-center py-12">Loading gigs...</div>
+        ) : (
+          <>
+            {/* St Kilda Carousel */}
+            <Carousel
+              title="St Kilda Gigs"
+              location="St Kilda"
+              date={date}
+              gigs={stKildaGigs}
+              id="stkilda"
+            />
+
+            {/* Fitzroy/Collingwood/Richmond Carousel */}
+            <Carousel
+              title="Fitzroy, Collingwood & Richmond Gigs"
+              location="Fitzroy, Collingwood and Richmond"
+              date={date}
+              gigs={fitzroyRichmondGigs}
+              id="fitzroy"
+            />
+          </>
+        )}
+      </div>
+
+      {error && (
+        <div className="text-red-500 text-center mt-4">
+          Error: {error}
+        </div>
+      )}
+    </div>
+  );
+}
