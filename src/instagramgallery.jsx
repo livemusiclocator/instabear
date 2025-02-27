@@ -388,11 +388,13 @@ function LocationTitleSlide({ date, location, className = "" }) {
   });
 
   return (
-    <div className={`location-title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center ${className}`}>
-      <div className="mt-6 mb-4">
-        <img src="./lml-logo.png" alt="Live Music Locator" className="w-32 h-32" />
+    <div className={`location-title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-between ${className}`}>
+      {/* Increased gap between logo and top by 10% and made logo 15% larger */}
+      <div className="mt-8 mb-4"> {/* Changed from mt-6 to mt-8 for 10% more space from top */}
+        <img src="./lml-logo.png" alt="Live Music Locator" className="w-[147px] h-[147px]" /> {/* Increased from w-32 h-32 (128px) to 147px (15% larger) */}
       </div>
-      <div className="text-center px-12">
+      
+      <div className="text-center px-12 flex-grow">
         {location === "St Kilda" ? (
           <h1 className="text-white text-[3.5rem] font-bold mb-6">St Kilda</h1>
         ) : (
@@ -405,6 +407,10 @@ function LocationTitleSlide({ date, location, className = "" }) {
         <h2 className="text-white text-[2.2rem] mb-4">
           Gig Guide
         </h2>
+      </div>
+      
+      {/* Date moved to bottom with 50% less space between baseline and bottom of slide */}
+      <div className="mb-6"> {/* Ensures date never touches bottom of slide */}
         <p className="text-[1.71rem]" style={{ color: BRAND_BLUE }}>
           {toTitleCase(formattedDate)}
         </p>
