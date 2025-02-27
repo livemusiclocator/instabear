@@ -5,7 +5,7 @@ This script automates the process of generating and posting Instagram content us
 ## System Architecture
 
 ### Raspberry Pi's Role
-- Acts as the automation server that runs on a schedule (7:45 AM daily)
+- Acts as the automation server that runs on a schedule (7:45 AM Wednesday through Sunday, excluding Monday and Tuesday)
 - Executes a headless browser to interact with the web interface
 - Handles the entire posting workflow automatically without human intervention
 - Takes screenshots during the process for verification
@@ -111,9 +111,9 @@ npm start
 crontab -e
 ```
 
-2. Add a cron job (runs daily at 7:45 AM):
+2. Add a cron job (runs at 7:45 AM Wednesday through Sunday, excluding Monday and Tuesday):
 ```
-45 7 * * * cd /home/insta/instabear_pi && /usr/bin/node pi-automation.js >> /home/insta/instabear_pi/cron.log 2>&1
+45 7 * * 3-6,0 cd /home/insta/instabear_pi && /usr/bin/node pi-automation.js >> /home/insta/instabear_pi/cron.log 2>&1
 ```
 
 ## Notifications

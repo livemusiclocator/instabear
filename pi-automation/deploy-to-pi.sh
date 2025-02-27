@@ -53,7 +53,7 @@ ENVFILE
     
     echo "Setup complete! You can now set up the cron job by running: crontab -e"
     echo "Suggested cron entry:"
-    echo "0 9 * * * cd $PI_PATH && /usr/bin/node $PI_PATH/pi-automation.js >> $PI_PATH/cron.log 2>&1"
+    echo "45 7 * * 3-6,0 cd $PI_PATH && /usr/bin/node $PI_PATH/pi-automation.js >> $PI_PATH/cron.log 2>&1"
 EOF
 
 echo "Deployment complete!"
