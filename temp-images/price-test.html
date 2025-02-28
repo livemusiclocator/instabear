@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Display Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .gig-panel {
+            background-color: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(4px);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .flex {
+            display: flex;
+        }
+        .justify-between {
+            justify-content: space-between;
+        }
+        .items-start {
+            align-items: flex-start;
+        }
+        .flex-1 {
+            flex: 1;
+        }
+        .min-w-0 {
+            min-width: 0;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .ml-3 {
+            margin-left: 12px;
+        }
+        .shrink-0 {
+            flex-shrink: 0;
+        }
+        .text-white {
+            color: white;
+        }
+        .text-xl {
+            font-size: 1.25rem;
+        }
+        .font-semibold {
+            font-weight: 600;
+        }
+        .text-lg {
+            font-size: 1.125rem;
+        }
+        .font-medium {
+            font-weight: 500;
+        }
+        .brand-orange {
+            color: #FF5C35;
+        }
+        .brand-blue {
+            color: #00B2E3;
+        }
+        .truncate {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .text-gray-500 {
+            color: #6b7280;
+        }
+        .mx-1 {
+            margin-left: 0.25rem;
+            margin-right: 0.25rem;
+        }
+        .text-gray-400 {
+            color: #9ca3af;
+        }
+        .text-base {
+            font-size: 1rem;
+        }
+        .mb-0\.5 {
+            margin-bottom: 0.125rem;
+        }
+        .items-end {
+            align-items: flex-end;
+        }
+        .items-center {
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Price Display Test</h1>
+        
+        <h2>Test 1: Basic Price Display</h2>
+        <div style="background-color: #1a1a1a; padding: 20px;">
+            <div class="gig-panel">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-end mb-0.5">
+                            <h3 class="text-white text-xl font-semibold">Test Gig Name</h3>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="brand-blue text-lg truncate">Test Venue Name</span>
+                            <span class="text-gray-500 mx-1">•</span>
+                            <span class="text-gray-400 text-base truncate">Test Suburb</span>
+                        </div>
+                    </div>
+                    <div class="text-right ml-3 shrink-0">
+                        <div class="text-white text-xl font-semibold">20:00</div>
+                        <div class="text-lg font-medium brand-orange">Free</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Test 2: Price Display with Conditional Rendering</h2>
+        <div style="background-color: #1a1a1a; padding: 20px;">
+            <div class="gig-panel">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-end mb-0.5">
+                            <h3 class="text-white text-xl font-semibold">Test Gig Name</h3>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="brand-blue text-lg truncate">Test Venue Name</span>
+                            <span class="text-gray-500 mx-1">•</span>
+                            <span class="text-gray-400 text-base truncate">Test Suburb</span>
+                        </div>
+                    </div>
+                    <div class="text-right ml-3 shrink-0">
+                        <div class="text-white text-xl font-semibold">20:00</div>
+                        <div id="price-display" class="text-lg font-medium" style="color: #FF5C35;">$25.00</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Test 3: Price Display with Inline Style</h2>
+        <div style="background-color: #1a1a1a; padding: 20px;">
+            <div class="gig-panel">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-end mb-0.5">
+                            <h3 class="text-white text-xl font-semibold">Test Gig Name</h3>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="brand-blue text-lg truncate">Test Venue Name</span>
+                            <span class="text-gray-500 mx-1">•</span>
+                            <span class="text-gray-400 text-base truncate">Test Suburb</span>
+                        </div>
+                    </div>
+                    <div class="text-right ml-3 shrink-0">
+                        <div class="text-white text-xl font-semibold">20:00</div>
+                        <div class="text-lg font-medium" style="color: #FF5C35 !important; visibility: visible; display: block; position: relative; z-index: 10;">$49.96</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -283,6 +283,30 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date, location) {
   return caption;
 }
 
+// PriceDisplay Component
+function PriceDisplay({ price }) {
+  if (!price) return null;
+  
+  return (
+    <div 
+      className="text-lg font-medium block" 
+      style={{ 
+        color: BRAND_ORANGE,
+        position: 'relative',
+        zIndex: 10,
+        visibility: 'visible',
+        display: 'block'
+      }}
+    >
+      {price}
+    </div>
+  );
+}
+
+PriceDisplay.propTypes = {
+  price: PropTypes.string
+};
+
 // Define prop types for GigPanel
 GigPanel.propTypes = {
   gig: PropTypes.shape({
@@ -306,6 +330,14 @@ function GigPanel({ gig, isLast }) {
   const gigNameRef = useRef(null);
   const panelRef = useRef(null);
   const [showGenreTag, setShowGenreTag] = useState(false);
+
+  // Debug price information
+  useEffect(() => {
+    console.log(`Gig: ${gig.name}, Venue: ${gig.venue.name}`);
+    console.log(`Information tags:`, gig.information_tags);
+    console.log(`Prices:`, gig.prices);
+    console.log(`Formatted price:`, formatPrice(gig));
+  }, [gig]);
 
   useEffect(() => {
     if (gigNameRef.current && panelRef.current && gig.genre_tags?.length > 0) {
@@ -362,7 +394,7 @@ function GigPanel({ gig, isLast }) {
           <div className="text-white text-xl font-semibold">
             {gig.start_time}
           </div>
-          <div style={{ color: BRAND_ORANGE }} className="text-lg">
+          <div className="text-lg font-medium" style={{ color: `${BRAND_ORANGE} !important`, display: 'block !important', visibility: 'visible !important', position: 'relative', zIndex: 999 }}>
             {formatPrice(gig)}
           </div>
         </div>
@@ -389,35 +421,37 @@ function LocationTitleSlide({ date, location, className = "" }) {
   });
 
   return (
-    <div className={`location-title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center ${className}`}>
-      {/* Main container with flex to position elements */}
-      <div className="flex flex-col items-center justify-between h-full py-8">
-        {/* Logo positioned halfway between top of slide and top of location block */}
-        <div className="flex-grow-0 mb-8">
+    <div className={`location-title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative ${className}`}>
+      {/* Using absolute positioning to match the exact layout in the diagram */}
+      <div className="absolute inset-0 flex flex-col">
+        {/* Logo positioned halfway between top of slide and top of text block */}
+        <div className="w-full flex justify-center" style={{ marginTop: '60px' }}>
           <img src="./lml-logo.png" alt="Live Music Locator" className="w-[147px] h-[147px]" />
         </div>
         
-        {/* Location block centered vertically */}
-        <div className="text-center px-12 flex-grow flex flex-col items-center justify-center">
+        {/* Location text centered vertically in the slide */}
+        <div className="flex-1 flex items-center justify-center text-center px-12">
           {location === "St Kilda" ? (
-            <h1 className="text-white text-[3.5rem] font-bold mb-4">St Kilda</h1>
+            <h1 className="text-white text-[3.5rem] font-bold">St Kilda</h1>
           ) : (
-            <div className="-space-y-5 mb-4">
+            <div className="-space-y-5">
               <h1 className="text-white text-[2.2rem] font-bold">Fitzroy</h1>
-              <h1 className="text-white text-[2.2rem] font-bold mb-2">Collingwood</h1>
-              <h1 className="text-white text-[2.2rem] font-bold mb-2">Richmond</h1>
+              <h1 className="text-white text-[2.2rem] font-bold">Collingwood</h1>
+              <h1 className="text-white text-[2.2rem] font-bold">Richmond</h1>
             </div>
           )}
         </div>
         
-        {/* Gig Guide centered between location block and bottom of slide */}
-        <div className="flex-grow flex flex-col items-center justify-center">
-          <h2 className="text-[2.2rem] mb-8" style={{ color: BRAND_ORANGE }}>
+        {/* Gig Guide text - baseline positioned halfway between location text and bottom */}
+        <div className="w-full flex justify-center" style={{ marginBottom: '60px' }}>
+          <h2 className="text-[2.2rem]" style={{ color: BRAND_ORANGE }}>
             Gig Guide
           </h2>
-          
-          {/* Date centered between Gig Guide and bottom of slide */}
-          <p className="text-[1.71rem] mb-4" style={{ color: BRAND_BLUE }}>
+        </div>
+        
+        {/* Date text - baseline positioned halfway between Gig Guide and bottom */}
+        <div className="w-full flex justify-center mb-12">
+          <p className="text-[1.71rem]" style={{ color: BRAND_BLUE }}>
             {toTitleCase(formattedDate)}
           </p>
         </div>
