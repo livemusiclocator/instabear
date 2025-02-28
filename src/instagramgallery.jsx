@@ -254,7 +254,8 @@ function getPostcode(address) {
 }
 
 function formatPrice(gig) {
-  if (gig.information_tags?.includes('free')) return 'Free';
+  // Check for 'free' or 'Free' in information_tags (case insensitive)
+  if (gig.information_tags?.some(tag => tag.toLowerCase() === 'free')) return 'Free';
   if (gig.prices && gig.prices.length > 0) {
     const amount = gig.prices[0].amount;
     return amount.startsWith('$') ? amount : `$${amount}`;
