@@ -388,32 +388,38 @@ function LocationTitleSlide({ date, location, className = "" }) {
   });
 
   return (
-    <div className={`location-title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center justify-between ${className}`}>
-      {/* Increased gap between logo and top by 10% and made logo 15% larger */}
-      <div className="mt-8 mb-4"> {/* Changed from mt-6 to mt-8 for 10% more space from top */}
-        <img src="./lml-logo.png" alt="Live Music Locator" className="w-[147px] h-[147px]" /> {/* Increased from w-32 h-32 (128px) to 147px (15% larger) */}
-      </div>
-      
-      <div className="text-center px-12 flex-grow">
-        {location === "St Kilda" ? (
-          <h1 className="text-white text-[3.5rem] font-bold mb-6">St Kilda</h1>
-        ) : (
-          <div className="-space-y-5">
-            <h1 className="text-white text-[2.2rem] font-bold">Fitzroy</h1>
-            <h1 className="text-white text-[2.2rem] font-bold mb-2">Collingwood</h1>
-            <h1 className="text-white text-[2.2rem] font-bold mb-2">Richmond</h1>
-          </div>
-        )}
-        <h2 className="text-white text-[2.2rem] mb-4">
-          Gig Guide
-        </h2>
-      </div>
-      
-      {/* Date moved to bottom with 50% less space between baseline and bottom of slide */}
-      <div className="mb-6"> {/* Ensures date never touches bottom of slide */}
-        <p className="text-[1.71rem]" style={{ color: BRAND_BLUE }}>
-          {toTitleCase(formattedDate)}
-        </p>
+    <div className={`location-title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center ${className}`}>
+      {/* Main container with flex to position elements */}
+      <div className="flex flex-col items-center justify-between h-full py-8">
+        {/* Logo positioned halfway between top of slide and top of location block */}
+        <div className="flex-grow-0 mb-8">
+          <img src="./lml-logo.png" alt="Live Music Locator" className="w-[147px] h-[147px]" />
+        </div>
+        
+        {/* Location block centered vertically */}
+        <div className="text-center px-12 flex-grow flex flex-col items-center justify-center">
+          {location === "St Kilda" ? (
+            <h1 className="text-white text-[3.5rem] font-bold mb-4">St Kilda</h1>
+          ) : (
+            <div className="-space-y-5 mb-4">
+              <h1 className="text-white text-[2.2rem] font-bold">Fitzroy</h1>
+              <h1 className="text-white text-[2.2rem] font-bold mb-2">Collingwood</h1>
+              <h1 className="text-white text-[2.2rem] font-bold mb-2">Richmond</h1>
+            </div>
+          )}
+        </div>
+        
+        {/* Gig Guide centered between location block and bottom of slide */}
+        <div className="flex-grow flex flex-col items-center justify-center">
+          <h2 className="text-[2.2rem] mb-8" style={{ color: BRAND_ORANGE }}>
+            Gig Guide
+          </h2>
+          
+          {/* Date centered between Gig Guide and bottom of slide */}
+          <p className="text-[1.71rem] mb-4" style={{ color: BRAND_BLUE }}>
+            {toTitleCase(formattedDate)}
+          </p>
+        </div>
       </div>
     </div>
   );
