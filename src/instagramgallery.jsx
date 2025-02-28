@@ -261,6 +261,7 @@ function formatPrice(gig) {
   let output = '';
   let reason = '';
   
+  
   // NEW LOGIC:
   // 1. If there is ANY price info, display "$Ticketed"
   if (prices.length > 0) {
