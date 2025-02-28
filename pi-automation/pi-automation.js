@@ -120,71 +120,8 @@ async function sendSlackNotification(success, error = null) {
         }
 
         log('Slack notification sent successfully');
-
-        // Upload screenshots to Slack
-        await uploadScreenshotsToSlack(slackWebhookUrl);
-
     } catch (slackError) {
         log(`Failed to send Slack notification: ${slackError.message}`, true);
-    }
-}
-
-// Function to upload screenshots to Slack
-async function uploadScreenshotsToSlack(webhookUrl) {
-    try {
-        const screenshotPaths = [
-            'page-loaded.png',
-            'after-post-click.png',
-            'after-waiting.png'
-        ];
-        
-        for (const screenshot of screenshotPaths) {
-            try {
-                // Check if file exists
-                readFileSync(screenshot);
-                
-                // Create a message with image URL (using GitHub Pages URL)
-                const message = {
-                    blocks: [
-                        {
-                            type: "section",
-                            text: {
-                                type: "mrkdwn",
-                                text: `*Screenshot:* ${screenshot}`
-                            }
-                        },
-                        {
-                            type: "image",
-                            title: {
-                                type: "plain_text",
-                                text: screenshot
-                            },
-                            image_url: `${GITHUB_PAGES_URL}screenshots/${screenshot}`,
-                            alt_text: screenshot
-                        }
-                    ]
-                };
-                
-                // Send the message to Slack
-                const response = await fetch(webhookUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(message)
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`Slack API responded with status: ${response.status}`);
-                }
-                
-                log(`Sent screenshot ${screenshot} to Slack`);
-            } catch (err) {
-                log(`Could not send screenshot ${screenshot} to Slack: ${err.message}`, true);
-            }
-        }
-    } catch (error) {
-        log(`Failed to upload screenshots to Slack: ${error.message}`, true);
     }
 }
 
@@ -228,23 +165,66 @@ async function automate() {
 
         // Wait for any necessary elements and perform actions
         log('Waiting for page to be ready');
-        await page.waitForSelector('#generate-images-btn', { timeout: 60000 });
         
-        // Click generate button
-        log('Clicking generate button');
-        await page.click('#generate-images-btn');
+        // Process St Kilda carousel
+        log('Processing St Kilda carousel...');
+        await page.waitForSelector('#generate-images-btn-stkilda', { timeout: 60000 });
         
-        // Wait for generation to complete and post button to appear
-        log('Waiting for post button to appear');
-        await page.waitForSelector('#post-instagram-btn', { timeout: 60000 });
+        // Click generate button for St Kilda
+        log('Clicking generate button for St Kilda');
+        await page.click('#generate-images-btn-stkilda');
         
-        // Click post button
-        log('Clicking post button');
-        await page.click('#post-instagram-btn');
+        // Take a screenshot after clicking generate button for St Kilda
+        await page.screenshot({ path: 'stkilda-generate-click.png' });
+        log('Took screenshot after clicking generate button for St Kilda');
         
-        // Take a screenshot after clicking post button
-        await page.screenshot({ path: 'after-post-click.png' });
-        log('Took screenshot after clicking post button');
+        // Wait for 45 seconds
+        log('Waiting 45 seconds after St Kilda generate click...');
+        await page.waitForTimeout(45000);
+        
+        // Wait for post button to appear for St Kilda
+        log('Waiting for post button to appear for St Kilda');
+        await page.waitForSelector('#post-instagram-btn-stkilda', { timeout: 60000 });
+        
+        // Click post button for St Kilda
+        log('Clicking post button for St Kilda');
+        await page.click('#post-instagram-btn-stkilda');
+        
+        // Take a screenshot after clicking post button for St Kilda
+        await page.screenshot({ path: 'stkilda-post-click.png' });
+        log('Took screenshot after clicking post button for St Kilda');
+        
+        // Wait for 45 seconds
+        log('Waiting 45 seconds after St Kilda post click...');
+        await page.waitForTimeout(45000);
+        
+        // Process Fitzroy carousel
+        log('Processing Fitzroy carousel...');
+        await page.waitForSelector('#generate-images-btn-fitzroy', { timeout: 60000 });
+        
+        // Click generate button for Fitzroy
+        log('Clicking generate button for Fitzroy');
+        await page.click('#generate-images-btn-fitzroy');
+        
+        // Take a screenshot after clicking generate button for Fitzroy
+        await page.screenshot({ path: 'fitzroy-generate-click.png' });
+        log('Took screenshot after clicking generate button for Fitzroy');
+        
+        // Wait for 45 seconds
+        log('Waiting 45 seconds after Fitzroy generate click...');
+        await page.waitForTimeout(45000);
+        
+        // Wait for post button to appear for Fitzroy
+        log('Waiting for post button to appear for Fitzroy');
+        await page.waitForSelector('#post-instagram-btn-fitzroy', { timeout: 60000 });
+        
+        // Click post button for Fitzroy
+        log('Clicking post button for Fitzroy');
+        await page.click('#post-instagram-btn-fitzroy');
+        
+        // Take a screenshot after clicking post button for Fitzroy
+        await page.screenshot({ path: 'fitzroy-post-click.png' });
+        log('Took screenshot after clicking post button for Fitzroy');
         
         // Wait for posting to complete - increased to 2 minutes
         log('Waiting for posting to complete (2 minutes)...');
@@ -253,6 +233,36 @@ async function automate() {
         // Take a final screenshot after waiting
         await page.screenshot({ path: 'after-waiting.png' });
         log('Took final screenshot after waiting');
+
+        // Check for success messages for both carousels
+        log('Checking for success messages...');
+        
+        // Look for success message for St Kilda carousel
+        const stKildaSuccess = await page.evaluate(() => {
+            const stKildaSection = document.querySelector('div:has(h2:contains("St Kilda Gigs"))');
+            if (!stKildaSection) return false;
+            
+            const statusDiv = stKildaSection.querySelector('div.text-sm.text-gray-600');
+            return statusDiv && statusDiv.textContent.includes('Successfully posted to Instagram');
+        });
+        
+        // Look for success message for Fitzroy carousel
+        const fitzroySuccess = await page.evaluate(() => {
+            const fitzroySection = document.querySelector('div:has(h2:contains("Fitzroy"))');
+            if (!fitzroySection) return false;
+            
+            const statusDiv = fitzroySection.querySelector('div.text-sm.text-gray-600');
+            return statusDiv && statusDiv.textContent.includes('Successfully posted to Instagram');
+        });
+        
+        if (stKildaSuccess && fitzroySuccess) {
+            log('Both carousels were successfully posted to Instagram');
+            success = true;
+        } else {
+            if (!stKildaSuccess) log('St Kilda carousel posting failed or status not found', true);
+            if (!fitzroySuccess) log('Fitzroy carousel posting failed or status not found', true);
+            throw new Error('Instagram posting was not fully successful');
+        }
 
         // Clean up temp-images directory in GitHub repo
         log('Cleaning up temp-images directory...');
@@ -295,7 +305,6 @@ async function automate() {
         }
 
         log('Automation completed successfully');
-        success = true;
     } catch (error) {
         log(`Error during automation: ${error.message}`, true);
         errorDetails = error;
