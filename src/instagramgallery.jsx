@@ -248,8 +248,14 @@ function getSuburb(address) {
   return match ? match[1].trim() : '';
 }
 
-function getPostcode(address) {
-  const match = address.match(/\b(\d{4})\b/);
+function getPostcode(venue) {
+  // First try to use the dedicated postcode field if it exists
+  if (venue.postcode) {
+    return venue.postcode;
+  }
+  
+  // Fall back to extracting from address if postcode field is not available
+  const match = venue.address.match(/\b(\d{4})\b/);
   return match ? match[1] : '';
 }
 
@@ -708,14 +714,14 @@ export default function InstagramGallery() {
   // Filter gigs by location
   const stKildaGigs = useMemo(() => {
     return gigs.filter(gig => {
-      const postcode = getPostcode(gig.venue.address);
+      const postcode = getPostcode(gig.venue);
       return ST_KILDA_POSTCODES.includes(postcode);
     });
   }, [gigs]);
 
   const fitzroyRichmondGigs = useMemo(() => {
     return gigs.filter(gig => {
-      const postcode = getPostcode(gig.venue.address);
+      const postcode = getPostcode(gig.venue);
       return FITZROY_RICHMOND_POSTCODES.includes(postcode);
     });
   }, [gigs]);

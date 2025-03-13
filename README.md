@@ -1,8 +1,34 @@
-# React + Vite
+# Live Music Locator - Instagram Gallery Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This application generates Instagram carousel posts for live music gigs in Melbourne, organized by location (St Kilda and Fitzroy/Collingwood/Richmond areas).
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Fetches gig data from the Live Music Locator API
+- Filters gigs by location based on postcodes
+- Generates Instagram-ready carousel images
+- Uploads images to GitHub for hosting
+- Posts carousels directly to Instagram
+
+## Recent Fixes
+
+### Postcode Handling (March 13, 2025)
+
+Fixed an issue where venues without postcodes in their address strings were being filtered out, even when they had postcodes in a dedicated field. The application now:
+
+1. First checks if a venue has a dedicated `postcode` field
+2. Only falls back to extracting postcodes from address strings if necessary
+
+This fix increased the number of Fitzroy/Collingwood/Richmond gigs from 4 to 15, ensuring all venues are properly categorized.
+
+## Development
+
+This project is built with React + Vite.
+
+```bash
+# Install dependencies
+npm install
+
+# Run development server
+npm run dev
+```
