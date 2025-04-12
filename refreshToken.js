@@ -90,15 +90,16 @@ async function main() {
     // Load environment variables
     dotenv.config({ path: envPath });
     
-    // Extract the app ID and current token from environment
-    const appId = process.env.VITE_APP_ID || '1739631596969313'; // Use the app ID you provided
-    const currentToken = process.env.VITE_INSTAGRAM_ACCESS_TOKEN;
-    
-    if (!currentToken) {
-      throw new Error('No current Instagram token found in .env file');
-    }
-    
-    console.log(`Current token: ${currentToken.substring(0, 10)}...${currentToken.substring(currentToken.length - 10)}`);
+  // Extract the app ID and current token from environment
+  const appId = process.env.VITE_APP_ID || '1739631596969313'; // Use the app ID you provided
+  const currentToken = process.env.VITE_INSTAGRAM_ACCESS_TOKEN;
+  
+  if (!currentToken) {
+    throw new Error('No current Instagram token found in .env file');
+  }
+  
+  // Only show token fragment for security
+  console.log(`Current token: ${currentToken.substring(0, 10)}...${currentToken.substring(currentToken.length - 10)}`);
     
     // Get the app secret from user input (for security reasons)
     const appSecret = await getInput('Enter your Facebook App Secret: ');

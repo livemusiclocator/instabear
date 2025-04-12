@@ -1,0 +1,111 @@
+name: Refresh Instagram Token
+
+on:
+  # Run on the 1st of every odd-numbered month (roughly every 60 days, well before token expiration)
+  schedule:
+    - cron: '0 0 1 1,3,5,7,9,11 *'
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  refresh-token:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Create non-interactive token refresh script
+        run: |
+          cat > refreshTokenCI.js << 'EOL'
+          #!/usr/bin/env node
+          
+          import fs from 'fs/promises';
+          import fetch from 'node-fetch';
+          
+          // Function to refresh the Instagram token
+          async function refreshToken(appId, appSecret, currentToken) {
+            try {
+              console.log('Refreshing Instagram token...');
+              
+              const url = `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${currentToken}`;
+              
+              const response = await fetch(url);
+              const data = await response.json();
+              
+              if (!response.ok || data.error) {
+                throw new Error(data.error?.message || `API request failed with status ${response.status}`);
+              }
+              
+              if (!data.access_token) {
+                throw new Error('No access token returned from API');
+              }
+              
+              console.log('Successfully obtained new long-term token.');
+              return data.access_token;
+            } catch (error) {
+              console.error('Error refreshing token:', error.message);
+              throw error;
+            }
+          }
+          
+          // Main function
+          async function main() {
+            try {
+              // Get environment variables from GitHub Actions
+              const appId = process.env.FB_APP_ID;
+              const appSecret = process.env.FB_APP_SECRET;
+              const currentToken = process.env.CURRENT_TOKEN;
+              
+              if (!appId || !appSecret || !currentToken) {
+                throw new Error('Missing required environment variables');
+              }
+              
+              // Refresh the token
+              const newToken = await refreshToken(appId, appSecret, currentToken);
+              
+              // Output the new token (will be captured by GitHub Actions)
+              console.log(newToken);
+              
+            } catch (error) {
+              console.error('\nError:', error.message);
+              process.exit(1);
+            }
+          }
+          
+          // Run the main function
+          main();
+          EOL
+          
+          chmod +x refreshTokenCI.js
+        
+      - name: Refresh Instagram token
+        id: refresh
+        env:
+          FB_APP_ID: ${{ secrets.VITE_APP_ID }}
+          FB_APP_SECRET: ${{ secrets.FB_APP_SECRET }}
+          CURRENT_TOKEN: ${{ secrets.VITE_INSTAGRAM_ACCESS_TOKEN }}
+        run: |
+          NEW_TOKEN=$(node refreshTokenCI.js)
+          echo "new_token=$NEW_TOKEN" >> $GITHUB_OUTPUT
+          
+      - name: Update repository secret
+        uses: gliech/create-github-secret-action@v1
+        with:
+          name: VITE_INSTAGRAM_ACCESS_TOKEN
+          value: ${{ steps.refresh.outputs.new_token }}
+          pa_token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          
+      - name: Trigger deployment
+        uses: benc-uk/workflow-dispatch@v1
+        with:
+          workflow: Deploy to GitHub Pages
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
