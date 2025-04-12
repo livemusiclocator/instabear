@@ -12,12 +12,14 @@
     "generate-images": "node scripts/generateImages.js",
     "post-carousel": "node scripts/postCarousel.js",
     "send-slack-notification": "node scripts/sendSlackNotification.js",
+    "refresh-token": "node refreshToken.js",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@octokit/rest": "^21.1.0",
     "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
     "html-to-image": "^1.11.11",
     "jsdom": "^26.0.0",
     "node-fetch": "^3.3.2",
