@@ -25,6 +25,8 @@ This is your Facebook App Secret, which is needed to refresh the token.
 6. Value: `c2ecc0afdc4944d6af68575524ed6545` (your Facebook App Secret)
 7. Click "Add secret"
 
+Note: Your Facebook App ID is hardcoded in the workflow, so you don't need to add it as a secret.
+
 ### 2. Add REPO_ACCESS_TOKEN
 
 This is a GitHub Personal Access Token with permission to update repository secrets and trigger workflows.

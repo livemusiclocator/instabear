@@ -34,7 +34,8 @@ jobs:
           // Function to refresh the Instagram token
           async function refreshToken(appId, appSecret, currentToken) {
             try {
-              console.log('Refreshing Instagram token...');
+              // Refreshing Instagram token - log to stderr so it doesn't affect token capture
+              console.error('Refreshing Instagram token...');
               
               const url = `https://graph.facebook.com/v18.0/oauth/access_token?grant_type=fb_exchange_token&client_id=${appId}&client_secret=${appSecret}&fb_exchange_token=${currentToken}`;
               
@@ -49,7 +50,8 @@ jobs:
                 throw new Error('No access token returned from API');
               }
               
-              console.log('Successfully obtained new long-term token.');
+              // Successfully obtained token - log to stderr
+              console.error('Successfully obtained new long-term token.');
               return data.access_token;
             } catch (error) {
               console.error('Error refreshing token:', error.message);
@@ -61,18 +63,19 @@ jobs:
           async function main() {
             try {
               // Get environment variables from GitHub Actions
-              const appId = process.env.FB_APP_ID;
+              // Hardcode the App ID to avoid requiring an additional secret
+              const appId = process.env.FB_APP_ID || '1739631596969313';
               const appSecret = process.env.FB_APP_SECRET;
               const currentToken = process.env.CURRENT_TOKEN;
               
-              if (!appId || !appSecret || !currentToken) {
+              if (!appSecret || !currentToken) {
                 throw new Error('Missing required environment variables');
               }
               
               // Refresh the token
               const newToken = await refreshToken(appId, appSecret, currentToken);
               
-              // Output the new token (will be captured by GitHub Actions)
+              // Output ONLY the token to stdout (for capture by GitHub Actions)
               console.log(newToken);
               
             } catch (error) {
@@ -90,10 +93,10 @@ jobs:
       - name: Refresh Instagram token
         id: refresh
         env:
-          FB_APP_ID: ${{ secrets.VITE_APP_ID }}
           FB_APP_SECRET: ${{ secrets.FB_APP_SECRET }}
           CURRENT_TOKEN: ${{ secrets.VITE_INSTAGRAM_ACCESS_TOKEN }}
         run: |
+          # Capture only the token, ignoring any other output
           NEW_TOKEN=$(node refreshTokenCI.js)
           echo "new_token=$NEW_TOKEN" >> $GITHUB_OUTPUT
           
