@@ -1,0 +1,16 @@
+{
+  "name": "instagram-tools",
+  "version": "1.0.0",
+  "description": "Tools for Instagram venue handle integration",
+  "main": "fetch-instagram-follows.js",
+  "scripts": {
+    "fetch": "node fetch-instagram-follows.js",
+    "convert": "node csv-to-json.js"
+  },
+  "dependencies": {
+    "csv-parser": "^3.0.0",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.0.3",
+    "node-fetch": "^2.6.7"
+  }
+}

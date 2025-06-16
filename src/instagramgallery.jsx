@@ -292,6 +292,9 @@ function formatPrice(gig) {
 }
 
 // Caption generator
+// Import venue Instagram handles mapping
+import venueHandles from '../venueInstagramHandles.json';
+
 function generateCaption(slideGigs, slideIndex, totalSlides, date, location) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     timeZone: 'Australia/Melbourne',
@@ -305,7 +308,17 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date, location) {
   caption += `🎵 Live Music Locator - ${location} - ${formattedDate}\n`;
   caption += `Slide ${slideIndex + 1} of ${totalSlides}\n\n`;
   caption += slideGigs
-    .map(gig => `🎤 ${gig.name} @ ${gig.venue.name} - ${gig.start_time}`)
+    .map(gig => {
+      // Check if we have an Instagram handle for this venue
+      const venueHandle = venueHandles[gig.venue.id] || '';
+      
+      // Format the caption line with handle if available
+      if (venueHandle) {
+        return `🎤 ${gig.name} @ ${gig.venue.name} (${venueHandle}) - ${gig.start_time}`;
+      } else {
+        return `🎤 ${gig.name} @ ${gig.venue.name} - ${gig.start_time}`;
+      }
+    })
     .join('\n');
 
   return caption;
