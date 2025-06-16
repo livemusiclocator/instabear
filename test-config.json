@@ -1,0 +1,9 @@
+{
+  "name": "venue-handle-test",
+  "version": "1.0.0",
+  "description": "Test script for venue Instagram handles",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node testVenueHandles.js"
+  }
+}

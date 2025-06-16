@@ -291,9 +291,57 @@ function formatPrice(gig) {
   return output;
 }
 
+// Utility function to get venue Instagram handle with robust lookup
+function getVenueInstagramHandle(venue) {
+  if (!venue || !venue.id) return '';
+  
+  const venueId = venue.id;
+  let venueHandle = '';
+  
+  // First try direct lookup with the raw ID
+  if (venueId in venueHandles) {
+    venueHandle = venueHandles[venueId];
+  }
+  // Then try with normalized ID (lowercase & trimmed)
+  else if (venueId) {
+    // Use normalized handles lookup
+    const normalizedId = venueId.toLowerCase().trim();
+    const normalizedMatch = Object.keys(venueHandles).find(id =>
+      id.toLowerCase().trim() === normalizedId
+    );
+    if (normalizedMatch) {
+      venueHandle = venueHandles[normalizedMatch];
+    }
+  }
+  
+  // If still no match, try manual lookup by venue name for some well-known venues
+  if (!venueHandle && venue.name) {
+    // Create a simplified venue name for matching
+    const simplifiedName = venue.name.toLowerCase().replace(/[^\w\s]/g, '');
+    
+    // Manual lookup for key venues
+    if (simplifiedName.includes('corner hotel') || simplifiedName.includes('the corner')) {
+      venueHandle = '@cornerhotel';
+    } else if (simplifiedName.includes('evelyn') || simplifiedName.includes('the ev')) {
+      venueHandle = '@theevelynhotel';
+    } else if (simplifiedName.includes('northcote social')) {
+      venueHandle = '@northcotesc';
+    }
+    // Add more common venues as needed
+  }
+  
+  return venueHandle;
+}
+
 // Caption generator
 // Import venue Instagram handles mapping
 import venueHandles from '../venueInstagramHandles.json';
+
+// Log available venue handles for debugging
+console.log('DEBUG: Loaded venue Instagram handles:', {
+  totalHandles: Object.keys(venueHandles).length,
+  sampleHandles: Object.keys(venueHandles).slice(0, 5).map(id => ({ id, handle: venueHandles[id] }))
+});
 
 function generateCaption(slideGigs, slideIndex, totalSlides, date, location) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
@@ -304,13 +352,66 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date, location) {
     year: 'numeric'
   });
 
+  // Debug logging of gigs and their venues for this slide
+  console.log(`DEBUG: Generating caption for slide ${slideIndex + 1} with ${slideGigs.length} gigs`);
+  slideGigs.forEach(gig => {
+    console.log('DEBUG: Gig venue details:', {
+      gigName: gig.name,
+      venueId: gig.venue.id,
+      venueName: gig.venue.name,
+      hasHandle: !!venueHandles[gig.venue.id],
+      handle: venueHandles[gig.venue.id] || 'none'
+    });
+  });
+  
+  // Create a normalized lookup map for more robust handle matching
+  const normalizedHandles = {};
+  Object.entries(venueHandles).forEach(([id, handle]) => {
+    normalizedHandles[id.toLowerCase().trim()] = handle;
+  });
+  console.log('DEBUG: Created normalized handle lookup with', Object.keys(normalizedHandles).length, 'entries');
+
   let caption = `More information here: ${getPublicUrl('?dateRange=today')}\n\n`;
   caption += `🎵 Live Music Locator - ${location} - ${formattedDate}\n`;
   caption += `Slide ${slideIndex + 1} of ${totalSlides}\n\n`;
   caption += slideGigs
     .map(gig => {
-      // Check if we have an Instagram handle for this venue
-      const venueHandle = venueHandles[gig.venue.id] || '';
+      // Check if we have an Instagram handle for this venue - try multiple formats
+      const venueId = gig.venue.id;
+      let venueHandle = '';
+      
+      // First try direct lookup with the raw ID
+      if (venueId in venueHandles) {
+        venueHandle = venueHandles[venueId];
+      }
+      // Then try with normalized ID (lowercase & trimmed)
+      else if (venueId && normalizedHandles[venueId.toLowerCase().trim()]) {
+        venueHandle = normalizedHandles[venueId.toLowerCase().trim()];
+      }
+      // If still no match, try manual lookup by venue name for some well-known venues
+      else if (gig.venue.name) {
+        // Create a simplified venue name for matching
+        const simplifiedName = gig.venue.name.toLowerCase().replace(/[^\w\s]/g, '');
+        
+        // Manual lookup for key venues
+        if (simplifiedName.includes('corner hotel') || simplifiedName.includes('the corner')) {
+          venueHandle = '@cornerhotel';
+        } else if (simplifiedName.includes('evelyn') || simplifiedName.includes('the ev')) {
+          venueHandle = '@theevelynhotel';
+        } else if (simplifiedName.includes('northcote social')) {
+          venueHandle = '@northcotesc';
+        }
+        // Add more common venues as needed
+      }
+      
+      // Debug log each caption line generation with detailed inspection
+      console.log(`DEBUG: Caption for ${gig.name} @ ${gig.venue.name}:`, {
+        venueId,
+        lookupMethod: venueId in venueHandles ? 'direct' :
+                     (venueId && normalizedHandles[venueId.toLowerCase().trim()]) ? 'normalized' :
+                     venueHandle ? 'manual' : 'not found',
+        handleResult: venueHandle
+      });
       
       // Format the caption line with handle if available
       if (venueHandle) {
@@ -321,6 +422,9 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date, location) {
     })
     .join('\n');
 
+  // Log the final caption for verification
+  console.log('DEBUG: Generated caption:', caption);
+  
   return caption;
 }
 
@@ -575,6 +679,21 @@ function Carousel({
     setUploadStatus('Posting to Instagram...');
 
     try {
+      // Log the captions that will be sent to Instagram
+      console.log('DEBUG: Captions being posted to Instagram:');
+      uploadedImages.captions.forEach((caption, index) => {
+        console.log(`DEBUG: Caption ${index + 1}:`, {
+          firstLine: caption.split('\n')[0],
+          totalLength: caption.length,
+          containsHandles: caption.includes('@'),
+          sampleHandle: caption.match(/@\w+/) ? caption.match(/@\w+/)[0] : 'none'
+        });
+        
+        // Check for specific venue handles in caption
+        const handleMatches = caption.match(/@[a-zA-Z0-9_.]+/g) || [];
+        console.log(`DEBUG: Instagram handles in caption ${index + 1}:`, handleMatches);
+      });
+      
       const result = await postToInstagram(uploadedImages.urls, uploadedImages.captions);
       if (result.success) {
         setUploadStatus('Successfully posted to Instagram!');
@@ -696,6 +815,36 @@ export default function InstagramGallery() {
       console.log(`API URL: https://api.lml.live/gigs/query?location=melbourne&date_from=${selectedDate}&date_to=${selectedDate}`);
 
       const data = await response.json();
+      // Log a sample of raw venue IDs from API for debugging
+      if (data.length > 0) {
+        console.log('DEBUG: API Response Venue ID Format Check:', {
+          sampleVenue1: data[0].venue,
+          sampleVenue2: data.length > 1 ? data[1].venue : null,
+          sampleVenueIdType: typeof data[0].venue.id,
+          idInHandlesMap: data[0].venue.id in venueHandles,
+          exactMatch: venueHandles[data[0].venue.id]
+        });
+        
+        // Check for potential casing issues or extra whitespace
+        if (data[0].venue.id) {
+          const rawId = data[0].venue.id;
+          const trimmedId = rawId.trim();
+          const lowercaseId = rawId.toLowerCase();
+          console.log('DEBUG: ID Format Variations:', {
+            rawId,
+            trimmedId: trimmedId !== rawId ? trimmedId : 'same as raw',
+            lowercaseId: lowercaseId !== rawId ? lowercaseId : 'same as raw',
+            trimmedLowercaseMatches: venueHandles[trimmedId.toLowerCase()] || 'no match'
+          });
+          
+          // Check for any potential close matches
+          const closeMatches = Object.keys(venueHandles).filter(id =>
+            id.includes(rawId) || rawId.includes(id)
+          ).slice(0, 3);
+          console.log('DEBUG: Potential Close Matches:', closeMatches);
+        }
+      }
+      
       const validGigs = data.map(gig => ({
         ...gig,
         start_time: gig.start_time || '23:59'
