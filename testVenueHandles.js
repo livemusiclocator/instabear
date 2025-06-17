@@ -70,33 +70,10 @@ function testCaptionGeneration() {
     let venueHandle = '';
     let lookupMethod = '';
     
-    // First try direct lookup with the raw ID
+    // Use ONLY exact venue ID matching
     if (venueId in venueHandles) {
       venueHandle = venueHandles[venueId];
       lookupMethod = 'direct';
-    } 
-    // Then try with normalized ID (lowercase & trimmed)
-    else if (venueId && normalizedHandles[venueId.toLowerCase().trim()]) {
-      venueHandle = normalizedHandles[venueId.toLowerCase().trim()];
-      lookupMethod = 'normalized';
-    }
-    // If still no match, try manual lookup by venue name for some well-known venues
-    else if (gig.venue.name) {
-      // Create a simplified venue name for matching
-      const simplifiedName = gig.venue.name.toLowerCase().replace(/[^\w\s]/g, '');
-      
-      // Manual lookup for key venues
-      if (simplifiedName.includes('corner hotel') || simplifiedName.includes('the corner')) {
-        venueHandle = '@cornerhotel';
-        lookupMethod = 'manual-name';
-      } else if (simplifiedName.includes('evelyn') || simplifiedName.includes('the ev')) {
-        venueHandle = '@theevelynhotel';
-        lookupMethod = 'manual-name';
-      } else if (simplifiedName.includes('northcote social')) {
-        venueHandle = '@northcotesc';
-        lookupMethod = 'manual-name';
-      }
-      // Add more common venues as needed
     }
     
     // Format caption line
