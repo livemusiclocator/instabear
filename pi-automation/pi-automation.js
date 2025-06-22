@@ -325,9 +325,9 @@ async function automate() {
         await page.screenshot({ path: fitzroyPostScreenshot });
         log(`Took screenshot after clicking post button for Fitzroy: ${fitzroyPostScreenshot}`);
         
-        // Wait for posting to complete - increased to 3 minutes
-        log('Waiting for posting to complete (3 minutes)...');
-        await page.waitForTimeout(180000);
+        // Wait for posting to complete - increased to 10 minutes
+        log('Waiting for posting to complete (10 minutes)...');
+        await page.waitForTimeout(600000);
         
         // Take a final screenshot after waiting
         const finalScreenshot = IS_LOCAL_TEST ? './after-waiting.png' : 'after-waiting.png';
@@ -463,10 +463,15 @@ async function automate() {
             log('Browser closed');
         }
         
-        // Send notification with status (don't await in case of network issues)
-        sendSlackNotification(success, errorDetails).catch(notifyError => {
-            log(`Error in Slack notification: ${notifyError.message}`, true);
-        });
+        // Only send notification if there was no success message within 10 minutes
+        if (!success) {
+            // Send notification with failure status (don't await in case of network issues)
+            sendSlackNotification(success, errorDetails).catch(notifyError => {
+                log(`Error in Slack notification: ${notifyError.message}`, true);
+            });
+        } else {
+            log('Instagram posting successful, no Slack notification needed');
+        }
     }
 }
 
