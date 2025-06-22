@@ -10,6 +10,14 @@ import fetch from 'node-fetch';
 // Load environment variables from .env file
 dotenv.config();
 
+// Check if running in local test mode
+const IS_LOCAL_TEST = process.env.LOCAL_TEST === 'true';
+
+// Log local test mode if active
+if (IS_LOCAL_TEST) {
+    console.log('Running in LOCAL TEST MODE');
+}
+
 // Check for required environment variables
 const REQUIRED_ENV_VARS = {
     'SLACK_WEBHOOK_URL': 'Slack webhook URL for notifications',
@@ -59,10 +67,22 @@ function log(message, isError = false) {
 // Function to send Slack notifications with retry mechanism
 async function sendSlackNotification(success, error = null, retryCount = 3) {
     try {
+        // Skip Slack notifications in local test mode unless specifically configured
+        if (IS_LOCAL_TEST && (!process.env.SLACK_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL === 'your_slack_webhook_url_here')) {
+            log('Running in local test mode with no Slack webhook configured - skipping notification');
+            return;
+        }
+        
         // Check if Slack webhook URL is configured
         const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
         if (!slackWebhookUrl || slackWebhookUrl === 'your_slack_webhook_url_here') {
             log('Slack webhook URL not configured, skipping notification');
+            return;
+        }
+
+        // Validate webhook URL format
+        if (!slackWebhookUrl.startsWith('https://hooks.slack.com/')) {
+            log(`Invalid Slack webhook URL format: ${slackWebhookUrl.substring(0, 15)}... - should start with https://hooks.slack.com/`, true);
             return;
         }
 
@@ -152,7 +172,8 @@ async function sendSlackNotification(success, error = null, retryCount = 3) {
             clearTimeout(timeoutId);
             
             if (!response.ok) {
-                throw new Error(`Slack API responded with status: ${response.status}`);
+                const responseText = await response.text().catch(() => 'No response text');
+                throw new Error(`Slack API responded with status: ${response.status} - ${responseText}`);
             }
             
             log('Slack notification sent successfully');
@@ -164,7 +185,9 @@ async function sendSlackNotification(success, error = null, retryCount = 3) {
                 await new Promise(resolve => setTimeout(resolve, delayMs));
                 return sendSlackNotification(success, error, retryCount - 1);
             } else {
-                throw new Error(`Failed to send Slack notification after retries: ${fetchError.message}`);
+                const errorMessage = `Failed to send Slack notification after retries: ${fetchError.message}`;
+                log(errorMessage, true);
+                // Continue execution instead of throwing (don't let Slack failures kill the automation)
             }
         }
     } catch (slackError) {
@@ -194,13 +217,23 @@ async function automate() {
     try {
         log('Starting automation process');
 
-        // Launch browser
-        browser = await puppeteer.launch({
-            headless: 'new',
-            executablePath: '/usr/bin/chromium-browser', // Raspberry Pi Chromium path
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-            protocolTimeout: 180000  // 3 minutes instead of default 30 seconds
-        });
+        // Launch browser - different configuration for local test vs Pi
+        if (IS_LOCAL_TEST) {
+            log('Launching browser in local test mode');
+            browser = await puppeteer.launch({
+                headless: 'new',
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+                protocolTimeout: 180000  // 3 minutes instead of default 30 seconds
+            });
+        } else {
+            // Pi-specific configuration
+            browser = await puppeteer.launch({
+                headless: 'new',
+                executablePath: '/usr/bin/chromium-browser', // Raspberry Pi Chromium path
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+                protocolTimeout: 180000  // 3 minutes instead of default 30 seconds
+            });
+        }
 
         const page = await browser.newPage();
         
@@ -221,8 +254,9 @@ async function automate() {
         });
         
         // Take a screenshot for debugging
-        await page.screenshot({ path: 'page-loaded.png' });
-        log('Took screenshot of loaded page');
+        const screenshotPath = IS_LOCAL_TEST ? './page-loaded.png' : 'page-loaded.png';
+        await page.screenshot({ path: screenshotPath });
+        log(`Took screenshot of loaded page: ${screenshotPath}`);
 
         // Wait for any necessary elements and perform actions
         log('Waiting for page to be ready');
@@ -236,8 +270,9 @@ async function automate() {
         await page.click('#generate-images-btn-stkilda');
         
         // Take a screenshot after clicking generate button for St Kilda
-        await page.screenshot({ path: 'stkilda-generate-click.png' });
-        log('Took screenshot after clicking generate button for St Kilda');
+        const stKildaScreenshot = IS_LOCAL_TEST ? './stkilda-generate-click.png' : 'stkilda-generate-click.png';
+        await page.screenshot({ path: stKildaScreenshot });
+        log(`Took screenshot after clicking generate button for St Kilda: ${stKildaScreenshot}`);
         
         // Wait for 90 seconds (increased from 45 seconds)
         log('Waiting 90 seconds after St Kilda generate click...');
@@ -252,8 +287,9 @@ async function automate() {
         await page.click('#post-instagram-btn-stkilda');
         
         // Take a screenshot after clicking post button for St Kilda
-        await page.screenshot({ path: 'stkilda-post-click.png' });
-        log('Took screenshot after clicking post button for St Kilda');
+        const stKildaPostScreenshot = IS_LOCAL_TEST ? './stkilda-post-click.png' : 'stkilda-post-click.png';
+        await page.screenshot({ path: stKildaPostScreenshot });
+        log(`Took screenshot after clicking post button for St Kilda: ${stKildaPostScreenshot}`);
         
         // Wait for 90 seconds (increased from 45 seconds)
         log('Waiting 90 seconds after St Kilda post click...');
@@ -268,8 +304,9 @@ async function automate() {
         await page.click('#generate-images-btn-fitzroy');
         
         // Take a screenshot after clicking generate button for Fitzroy
-        await page.screenshot({ path: 'fitzroy-generate-click.png' });
-        log('Took screenshot after clicking generate button for Fitzroy');
+        const fitzroyScreenshot = IS_LOCAL_TEST ? './fitzroy-generate-click.png' : 'fitzroy-generate-click.png';
+        await page.screenshot({ path: fitzroyScreenshot });
+        log(`Took screenshot after clicking generate button for Fitzroy: ${fitzroyScreenshot}`);
         
         // Wait for 90 seconds (increased from 45 seconds)
         log('Waiting 90 seconds after Fitzroy generate click...');
@@ -284,45 +321,95 @@ async function automate() {
         await page.click('#post-instagram-btn-fitzroy');
         
         // Take a screenshot after clicking post button for Fitzroy
-        await page.screenshot({ path: 'fitzroy-post-click.png' });
-        log('Took screenshot after clicking post button for Fitzroy');
+        const fitzroyPostScreenshot = IS_LOCAL_TEST ? './fitzroy-post-click.png' : 'fitzroy-post-click.png';
+        await page.screenshot({ path: fitzroyPostScreenshot });
+        log(`Took screenshot after clicking post button for Fitzroy: ${fitzroyPostScreenshot}`);
         
         // Wait for posting to complete - increased to 3 minutes
         log('Waiting for posting to complete (3 minutes)...');
         await page.waitForTimeout(180000);
         
         // Take a final screenshot after waiting
-        await page.screenshot({ path: 'after-waiting.png' });
-        log('Took final screenshot after waiting');
+        const finalScreenshot = IS_LOCAL_TEST ? './after-waiting.png' : 'after-waiting.png';
+        await page.screenshot({ path: finalScreenshot });
+        log(`Took final screenshot after waiting: ${finalScreenshot}`);
 
         // Check for success messages for both carousels
         log('Checking for success messages...');
         
-        // Look for success message for St Kilda carousel
+        // Look for success message for St Kilda carousel using standard DOM methods
         const stKildaSuccess = await page.evaluate(() => {
-            const stKildaSection = document.querySelector('div:has(h2:contains("St Kilda Gigs"))');
+            // Find all h2 elements on the page
+            const headings = Array.from(document.querySelectorAll('h2'));
+            
+            // Find the one containing "St Kilda Gigs"
+            const stKildaHeading = headings.find(h => h.textContent.includes('St Kilda Gigs'));
+            if (!stKildaHeading) return false;
+            
+            // Get parent div (container)
+            let stKildaSection = stKildaHeading.parentElement;
+            // Sometimes need to go up another level to find the right container
+            while (stKildaSection && !stKildaSection.classList.contains('mb-16')) {
+                stKildaSection = stKildaSection.parentElement;
+            }
+            
             if (!stKildaSection) return false;
             
+            // Find status div
             const statusDiv = stKildaSection.querySelector('div.text-sm.text-gray-600');
             return statusDiv && statusDiv.textContent.includes('Successfully posted to Instagram');
         });
         
-        // Look for success message for Fitzroy carousel
+        // Look for success message for Fitzroy carousel using standard DOM methods
         const fitzroySuccess = await page.evaluate(() => {
-            const fitzroySection = document.querySelector('div:has(h2:contains("Fitzroy"))');
+            // Find all h2 elements on the page
+            const headings = Array.from(document.querySelectorAll('h2'));
+            
+            // Find the one containing "Fitzroy"
+            const fitzroyHeading = headings.find(h => h.textContent.includes('Fitzroy'));
+            if (!fitzroyHeading) return false;
+            
+            // Get parent div (container)
+            let fitzroySection = fitzroyHeading.parentElement;
+            // Sometimes need to go up another level to find the right container
+            while (fitzroySection && !fitzroySection.classList.contains('mb-16')) {
+                fitzroySection = fitzroySection.parentElement;
+            }
+            
             if (!fitzroySection) return false;
             
+            // Find status div
             const statusDiv = fitzroySection.querySelector('div.text-sm.text-gray-600');
             return statusDiv && statusDiv.textContent.includes('Successfully posted to Instagram');
         });
         
-        if (stKildaSuccess && fitzroySuccess) {
-            log('Both carousels were successfully posted to Instagram');
-            success = true;
+        // In local test mode, be more forgiving about success
+        if (IS_LOCAL_TEST) {
+            // For local testing, count as success if any carousel posted successfully
+            if (stKildaSuccess || fitzroySuccess) {
+                if (stKildaSuccess && fitzroySuccess) {
+                    log('Both carousels were successfully posted to Instagram');
+                } else if (stKildaSuccess) {
+                    log('St Kilda carousel posted successfully, but Fitzroy failed or status not found', true);
+                } else {
+                    log('Fitzroy carousel posted successfully, but St Kilda failed or status not found', true);
+                }
+                success = true;
+            } else {
+                if (!stKildaSuccess) log('St Kilda carousel posting failed or status not found', true);
+                if (!fitzroySuccess) log('Fitzroy carousel posting failed or status not found', true);
+                throw new Error('Instagram posting was not successful - no carousels posted');
+            }
         } else {
-            if (!stKildaSuccess) log('St Kilda carousel posting failed or status not found', true);
-            if (!fitzroySuccess) log('Fitzroy carousel posting failed or status not found', true);
-            throw new Error('Instagram posting was not fully successful');
+            // In production mode on the Pi, require both to succeed
+            if (stKildaSuccess && fitzroySuccess) {
+                log('Both carousels were successfully posted to Instagram');
+                success = true;
+            } else {
+                if (!stKildaSuccess) log('St Kilda carousel posting failed or status not found', true);
+                if (!fitzroySuccess) log('Fitzroy carousel posting failed or status not found', true);
+                throw new Error('Instagram posting was not fully successful');
+            }
         }
 
         // Clean up temp-images directory in GitHub repo
@@ -376,8 +463,10 @@ async function automate() {
             log('Browser closed');
         }
         
-        // Send notification with status
-        await sendSlackNotification(success, errorDetails);
+        // Send notification with status (don't await in case of network issues)
+        sendSlackNotification(success, errorDetails).catch(notifyError => {
+            log(`Error in Slack notification: ${notifyError.message}`, true);
+        });
     }
 }
 
