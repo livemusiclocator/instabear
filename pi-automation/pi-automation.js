@@ -10,10 +10,39 @@ import fetch from 'node-fetch';
 // Load environment variables from .env file
 dotenv.config();
 
+// Check for required environment variables
+const REQUIRED_ENV_VARS = {
+    'SLACK_WEBHOOK_URL': 'Slack webhook URL for notifications',
+    'GITHUB_TOKEN': 'GitHub token for repo operations'
+};
+
+// Log any missing environment variables
+const missingVars = [];
+for (const [varName, description] of Object.entries(REQUIRED_ENV_VARS)) {
+    if (!process.env[varName] || process.env[varName] === `your_${varName.toLowerCase()}_here`) {
+        missingVars.push(`${varName}: ${description}`);
+    }
+}
+
 // Configuration
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const GITHUB_PAGES_URL = 'https://lml.live/instabear/';
 const LOG_FILE = join(__dirname, 'automation.log');
+const ENV_STATUS_FILE = join(__dirname, 'env-status.json');
+
+// Log environment status
+if (missingVars.length > 0) {
+    const envStatus = {
+        timestamp: new Date().toISOString(),
+        missing: missingVars,
+        warning: 'Some environment variables are missing or using default values'
+    };
+    try {
+        appendFileSync(ENV_STATUS_FILE, JSON.stringify(envStatus) + '\n');
+    } catch {
+        // Continue even if writing status file fails
+    }
+}
 
 // Helper function to log messages with timestamps
 function log(message, isError = false) {
@@ -27,8 +56,8 @@ function log(message, isError = false) {
     }
 }
 
-// Function to send Slack notifications
-async function sendSlackNotification(success, error = null) {
+// Function to send Slack notifications with retry mechanism
+async function sendSlackNotification(success, error = null, retryCount = 3) {
     try {
         // Check if Slack webhook URL is configured
         const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
@@ -106,22 +135,54 @@ async function sendSlackNotification(success, error = null) {
             });
         }
 
-        // Send the message to Slack
-        const response = await fetch(slackWebhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(message)
-        });
-
-        if (!response.ok) {
-            throw new Error(`Slack API responded with status: ${response.status}`);
+        // Send the message to Slack with timeout
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+            
+            const response = await fetch(slackWebhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(message),
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`Slack API responded with status: ${response.status}`);
+            }
+            
+            log('Slack notification sent successfully');
+        } catch (fetchError) {
+            // Retry logic for network errors
+            if (retryCount > 0) {
+                const delayMs = 5000; // 5 second delay between retries
+                log(`Slack notification failed, retrying in 5 seconds... (${retryCount} attempts left)`, true);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+                return sendSlackNotification(success, error, retryCount - 1);
+            } else {
+                throw new Error(`Failed to send Slack notification after retries: ${fetchError.message}`);
+            }
         }
-
-        log('Slack notification sent successfully');
     } catch (slackError) {
         log(`Failed to send Slack notification: ${slackError.message}`, true);
+        // Save notification to a local file as backup
+        try {
+            const backupFile = join(__dirname, 'failed-slack-notifications.json');
+            const timestamp = new Date().toISOString();
+            const backupData = {
+                timestamp,
+                success,
+                error: error ? error.message : null
+            };
+            appendFileSync(backupFile, JSON.stringify(backupData) + '\n');
+            log('Saved failed notification to backup file');
+        } catch (backupError) {
+            log(`Failed to save notification backup: ${backupError.message}`, true);
+        }
     }
 }
 
@@ -154,9 +215,9 @@ async function automate() {
         // Navigate to the GitHub Pages URL with cache-busting parameter
         const timestamp = new Date().getTime();
         log('Navigating to GitHub Pages');
-        await page.goto(`${GITHUB_PAGES_URL}?nocache=${timestamp}`, { 
+        await page.goto(`${GITHUB_PAGES_URL}?nocache=${timestamp}`, {
             waitUntil: 'networkidle0',
-            timeout: 60000 // 60 seconds timeout for page load
+            timeout: 120000 // 120 seconds (2 minutes) timeout for page load
         });
         
         // Take a screenshot for debugging
@@ -168,7 +229,7 @@ async function automate() {
         
         // Process St Kilda carousel
         log('Processing St Kilda carousel...');
-        await page.waitForSelector('#generate-images-btn-stkilda', { timeout: 60000 });
+        await page.waitForSelector('#generate-images-btn-stkilda', { timeout: 120000 });
         
         // Click generate button for St Kilda
         log('Clicking generate button for St Kilda');
@@ -178,13 +239,13 @@ async function automate() {
         await page.screenshot({ path: 'stkilda-generate-click.png' });
         log('Took screenshot after clicking generate button for St Kilda');
         
-        // Wait for 45 seconds
-        log('Waiting 45 seconds after St Kilda generate click...');
-        await page.waitForTimeout(45000);
+        // Wait for 90 seconds (increased from 45 seconds)
+        log('Waiting 90 seconds after St Kilda generate click...');
+        await page.waitForTimeout(90000);
         
         // Wait for post button to appear for St Kilda
         log('Waiting for post button to appear for St Kilda');
-        await page.waitForSelector('#post-instagram-btn-stkilda', { timeout: 60000 });
+        await page.waitForSelector('#post-instagram-btn-stkilda', { timeout: 120000 });
         
         // Click post button for St Kilda
         log('Clicking post button for St Kilda');
@@ -194,13 +255,13 @@ async function automate() {
         await page.screenshot({ path: 'stkilda-post-click.png' });
         log('Took screenshot after clicking post button for St Kilda');
         
-        // Wait for 45 seconds
-        log('Waiting 45 seconds after St Kilda post click...');
-        await page.waitForTimeout(45000);
+        // Wait for 90 seconds (increased from 45 seconds)
+        log('Waiting 90 seconds after St Kilda post click...');
+        await page.waitForTimeout(90000);
         
         // Process Fitzroy carousel
         log('Processing Fitzroy carousel...');
-        await page.waitForSelector('#generate-images-btn-fitzroy', { timeout: 60000 });
+        await page.waitForSelector('#generate-images-btn-fitzroy', { timeout: 120000 });
         
         // Click generate button for Fitzroy
         log('Clicking generate button for Fitzroy');
@@ -210,13 +271,13 @@ async function automate() {
         await page.screenshot({ path: 'fitzroy-generate-click.png' });
         log('Took screenshot after clicking generate button for Fitzroy');
         
-        // Wait for 45 seconds
-        log('Waiting 45 seconds after Fitzroy generate click...');
-        await page.waitForTimeout(45000);
+        // Wait for 90 seconds (increased from 45 seconds)
+        log('Waiting 90 seconds after Fitzroy generate click...');
+        await page.waitForTimeout(90000);
         
         // Wait for post button to appear for Fitzroy
         log('Waiting for post button to appear for Fitzroy');
-        await page.waitForSelector('#post-instagram-btn-fitzroy', { timeout: 60000 });
+        await page.waitForSelector('#post-instagram-btn-fitzroy', { timeout: 120000 });
         
         // Click post button for Fitzroy
         log('Clicking post button for Fitzroy');
@@ -226,9 +287,9 @@ async function automate() {
         await page.screenshot({ path: 'fitzroy-post-click.png' });
         log('Took screenshot after clicking post button for Fitzroy');
         
-        // Wait for posting to complete - increased to 2 minutes
-        log('Waiting for posting to complete (2 minutes)...');
-        await page.waitForTimeout(120000);
+        // Wait for posting to complete - increased to 3 minutes
+        log('Waiting for posting to complete (3 minutes)...');
+        await page.waitForTimeout(180000);
         
         // Take a final screenshot after waiting
         await page.screenshot({ path: 'after-waiting.png' });
