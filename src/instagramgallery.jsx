@@ -5,6 +5,8 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 const octokit = new Octokit({
   auth: import.meta.env.VITE_GITHUB_TOKEN
@@ -716,6 +718,44 @@ function Carousel({
     }
   };
 
+  // Handle downloading images as a zip file
+  const handleDownloadImages = async () => {
+    if (!uploadedImages) return;
+    
+    setUploadStatus('Preparing images for download...');
+    
+    try {
+      const zip = new JSZip();
+      const promises = [];
+      
+      // Add each image to the zip file
+      uploadedImages.urls.forEach(url => {
+        const filename = url.split('/').pop();
+        const promise = fetch(url)
+          .then(response => response.blob())
+          .then(blob => {
+            zip.file(filename, blob);
+          });
+        promises.push(promise);
+      });
+      
+      // Wait for all images to be added to the zip
+      await Promise.all(promises);
+      
+      // Generate the zip file
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      
+      // Trigger download
+      const formattedDate = date.replace(/-/g, '');
+      saveAs(zipBlob, `lml_gigs_${formattedDate}_${id}.zip`);
+      
+      setUploadStatus('Images downloaded successfully');
+    } catch (err) {
+      console.error('Error downloading images:', err);
+      setUploadStatus(`Download failed: ${err.message}`);
+    }
+  };
+
   return (
     <div className="mb-16 pb-8 border-b border-gray-300">
       <h2 className="text-2xl font-bold mb-6 text-center">{title}</h2>
@@ -780,16 +820,28 @@ function Carousel({
 
         {uploadedImages && (
           <div>
-            <button
-              id={`post-instagram-btn-${id}`}
-              onClick={handleInstagramPost}
-              disabled={isPosting}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              Post to Instagram
-            </button>
+            <div className="flex space-x-2 justify-center">
+              <button
+                id={`post-instagram-btn-${id}`}
+                onClick={handleInstagramPost}
+                disabled={isPosting}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                Post to Instagram
+              </button>
+              
+              {/* Download Images Button */}
+              <button
+                id={`download-images-btn-${id}`}
+                onClick={handleDownloadImages}
+                disabled={isPosting}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Download Images
+              </button>
+            </div>
             <p className="text-sm text-gray-600 mt-2">
-              Review the images above before posting
+              Review the images above before posting or downloading
             </p>
           </div>
         )}
