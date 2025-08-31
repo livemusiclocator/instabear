@@ -121,11 +121,21 @@ export default function InstagramStories() {
 
   return (
     <div className="min-h-screen bg-white p-8">
-      <h2 className="text-2xl font-bold mb-4 mx-auto text-center mb-20">
+      <h2 className="text-4xl font-bold mb-4 mx-auto text-center mb-[32px]">
         Stories Generator
       </h2>
       <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
         <div className="flex items-center gap-4 justify-center">
+          <input
+            type="date"
+            value={date}
+            className="px-3 py-1 rounded-lg border border-gray-300"
+            onChange={(e) => {
+              const newDate = e.target.value // "YYYY-MM-DD"
+              setDate(newDate)
+              fetchGigs(newDate)
+            }}
+          />
           <div className="text-gray-900">
             {loading ? (
               <span>Loading gigs...</span>
