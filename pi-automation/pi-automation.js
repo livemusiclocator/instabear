@@ -34,7 +34,7 @@ for (const [varName, description] of Object.entries(REQUIRED_ENV_VARS)) {
 
 // Configuration
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const GITHUB_PAGES_URL = 'https://lml.live/instabear/';
+const GITHUB_PAGES_URL = 'https://instabear.lml.live/';
 const LOG_FILE = join(__dirname, 'automation.log');
 const ENV_STATUS_FILE = join(__dirname, 'env-status.json');
 

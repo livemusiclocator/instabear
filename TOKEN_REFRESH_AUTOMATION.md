@@ -22,7 +22,7 @@ This is your Facebook App Secret, which is needed to refresh the token.
 3. In the left sidebar, click on "Secrets and variables" → "Actions"
 4. Click "New repository secret"
 5. Name: `FB_APP_SECRET`
-6. Value: `c2ecc0afdc4944d6af68575524ed6545` (your Facebook App Secret)
+6. Value: your Facebook App Secret (find it under the app's Settings → Basic in the Meta Developer console)
 7. Click "Add secret"
 
 Note: Your Facebook App ID is hardcoded in the workflow, so you don't need to add it as a secret.
