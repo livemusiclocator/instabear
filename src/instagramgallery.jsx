@@ -189,6 +189,30 @@ async function postToInstagram(imageUrls, captions) {
     const carouselContainerId = carouselData.id;
     console.log(`Carousel container created successfully. Container ID: ${carouselContainerId}`);
 
+    // Step 2.5: Poll until Instagram has finished processing the container.
+    // Publishing immediately after creation intermittently fails with
+    // "Media ID is not available" (error_subcode 2207027) because the
+    // container isn't ready yet.
+    let containerStatus = null;
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const statusResponse = await fetch(
+        `https://graph.facebook.com/v18.0/${carouselContainerId}?fields=status_code&access_token=${INSTAGRAM_ACCESS_TOKEN}`
+      );
+      const statusData = await statusResponse.json();
+      containerStatus = statusData.status_code;
+      console.log(`Container status check ${attempt + 1}: ${containerStatus}`);
+
+      if (containerStatus === 'FINISHED') break;
+      if (containerStatus === 'ERROR') {
+        throw new Error(`Carousel container failed processing: ${JSON.stringify(statusData)}`);
+      }
+      await new Promise(resolve => setTimeout(resolve, 3000));
+    }
+
+    if (containerStatus !== 'FINISHED') {
+      throw new Error(`Carousel container not ready after polling. Last status: ${containerStatus}`);
+    }
+
     // Step 3: Publish the carousel
     console.log('Publishing carousel...');
     
