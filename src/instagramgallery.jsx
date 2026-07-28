@@ -864,7 +864,11 @@ function Carousel({
 
       {/* Actions and status */}
       <div className="text-center mt-8 space-y-4">
-        <div className="text-gray-700 mb-2">
+        <div
+          className="text-gray-700 mb-2"
+          data-location-slug={id}
+          data-gig-count={gigs.length}
+        >
           {gigs.length} gigs found for {location}
           {slides.length > 9 && (
             <div className="text-red-500 font-bold">
@@ -872,41 +876,47 @@ function Carousel({
             </div>
           )}
         </div>
-        <button
-          id={`generate-images-btn-${id}`}
-          onClick={renderSlidesToImages}
-          disabled={isPosting}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Generate Images
-        </button>
+        {gigs.length > 0 ? (
+          <>
+            <button
+              id={`generate-images-btn-${id}`}
+              onClick={renderSlidesToImages}
+              disabled={isPosting}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Generate Images
+            </button>
 
-        {uploadedImages && (
-          <div>
-            <div className="flex space-x-2 justify-center">
-              <button
-                id={`post-instagram-btn-${id}`}
-                onClick={handleInstagramPost}
-                disabled={isPosting}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                Post to Instagram
-              </button>
-              
-              {/* Download Images Button */}
-              <button
-                id={`download-images-btn-${id}`}
-                onClick={handleDownloadImages}
-                disabled={isPosting}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Download Images
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 mt-2">
-              Review the images above before posting or downloading
-            </p>
-          </div>
+            {uploadedImages && (
+              <div>
+                <div className="flex space-x-2 justify-center">
+                  <button
+                    id={`post-instagram-btn-${id}`}
+                    onClick={handleInstagramPost}
+                    disabled={isPosting}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Post to Instagram
+                  </button>
+
+                  {/* Download Images Button */}
+                  <button
+                    id={`download-images-btn-${id}`}
+                    onClick={handleDownloadImages}
+                    disabled={isPosting}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Download Images
+                  </button>
+                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  Review the images above before posting or downloading
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <p className="text-gray-500 italic">No gigs found today</p>
         )}
 
         {uploadStatus && (
