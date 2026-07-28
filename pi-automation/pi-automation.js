@@ -175,6 +175,18 @@ async function automate() {
         // report success while posting nothing.
         await page.waitForSelector('[data-location-slug]', { timeout: 120000 });
 
+        // A failed gig fetch renders no gigs for any location, which looks
+        // identical to a genuinely empty day unless we check for it
+        // explicitly - fail loudly here instead of silently skipping
+        // everything and reporting success.
+        const fetchError = await page.evaluate(() => {
+            const root = document.querySelector('[data-fetch-error]');
+            return root ? root.dataset.fetchError : null;
+        });
+        if (fetchError) {
+            throw new Error(`Gig data fetch failed: ${fetchError}`);
+        }
+
         // Read gig counts for all locations before attempting any clicks -
         // locations with zero gigs render no buttons at all, so we must
         // know this in advance rather than risk a waitForSelector timeout

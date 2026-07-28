@@ -1020,7 +1020,7 @@ export default function InstagramGallery() {
   }, [gigs]);
 
   return (
-    <div className="min-h-screen bg-white p-8">
+    <div className="min-h-screen bg-white p-8" data-fetch-error={error || undefined}>
       <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
         <div className="flex items-center gap-4 justify-center">
           <div className="text-gray-900">
