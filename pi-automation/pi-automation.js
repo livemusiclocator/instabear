@@ -64,6 +64,11 @@ function log(message, isError = false) {
     }
 }
 
+// page.waitForTimeout() was removed in recent Puppeteer versions
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // Function to send Slack notifications with retry mechanism
 async function sendSlackNotification(success, error = null, retryCount = 3) {
     try {
@@ -248,13 +253,10 @@ async function automate() {
         // Navigate to the GitHub Pages URL with cache-busting parameter
         const timestamp = new Date().getTime();
         log('Navigating to GitHub Pages');
-        const navResponse = await page.goto(`${GITHUB_PAGES_URL}?nocache=${timestamp}`, {
+        await page.goto(`${GITHUB_PAGES_URL}?nocache=${timestamp}`, {
             waitUntil: 'networkidle0',
             timeout: 120000 // 120 seconds (2 minutes) timeout for page load
         });
-
-        // TEMP DEBUG: confirm what Chromium actually received
-        log(`DEBUG navigation response: status=${navResponse.status()} url=${navResponse.url()}`);
 
         // Take a screenshot for debugging
         const screenshotPath = IS_LOCAL_TEST ? './page-loaded.png' : 'page-loaded.png';
@@ -279,7 +281,7 @@ async function automate() {
         
         // Wait for 90 seconds (increased from 45 seconds)
         log('Waiting 90 seconds after St Kilda generate click...');
-        await page.waitForTimeout(90000);
+        await delay(90000);
         
         // Wait for post button to appear for St Kilda
         log('Waiting for post button to appear for St Kilda');
@@ -296,7 +298,7 @@ async function automate() {
         
         // Wait for 90 seconds (increased from 45 seconds)
         log('Waiting 90 seconds after St Kilda post click...');
-        await page.waitForTimeout(90000);
+        await delay(90000);
         
         // Process Fitzroy carousel
         log('Processing Fitzroy carousel...');
@@ -313,7 +315,7 @@ async function automate() {
         
         // Wait for 90 seconds (increased from 45 seconds)
         log('Waiting 90 seconds after Fitzroy generate click...');
-        await page.waitForTimeout(90000);
+        await delay(90000);
         
         // Wait for post button to appear for Fitzroy
         log('Waiting for post button to appear for Fitzroy');
@@ -330,7 +332,7 @@ async function automate() {
         
         // Wait for posting to complete - increased to 10 minutes
         log('Waiting for posting to complete (10 minutes)...');
-        await page.waitForTimeout(600000);
+        await delay(600000);
         
         // Take a final screenshot after waiting
         const finalScreenshot = IS_LOCAL_TEST ? './after-waiting.png' : 'after-waiting.png';
