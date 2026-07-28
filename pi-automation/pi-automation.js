@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { Octokit } from '@octokit/rest';
 import process from 'process';
 import dotenv from 'dotenv';
+import { LOCATIONS } from '../src/constants/locations.js';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -67,6 +68,55 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function postLocationCarousel(page, location) {
+    log(`Processing ${location.displayName} carousel...`);
+    await page.waitForSelector(`#generate-images-btn-${location.slug}`, { timeout: 120000 });
+
+    log(`Clicking generate button for ${location.displayName}`);
+    await page.click(`#generate-images-btn-${location.slug}`);
+
+    const generateScreenshot = IS_LOCAL_TEST
+        ? `./${location.slug}-generate-click.png`
+        : `${location.slug}-generate-click.png`;
+    await page.screenshot({ path: generateScreenshot });
+    log(`Took screenshot after clicking generate button for ${location.displayName}: ${generateScreenshot}`);
+
+    log(`Waiting 90 seconds after ${location.displayName} generate click...`);
+    await delay(90000);
+
+    log(`Waiting for post button to appear for ${location.displayName}`);
+    await page.waitForSelector(`#post-instagram-btn-${location.slug}`, { timeout: 120000 });
+
+    log(`Clicking post button for ${location.displayName}`);
+    await page.click(`#post-instagram-btn-${location.slug}`);
+
+    const postScreenshot = IS_LOCAL_TEST
+        ? `./${location.slug}-post-click.png`
+        : `${location.slug}-post-click.png`;
+    await page.screenshot({ path: postScreenshot });
+    log(`Took screenshot after clicking post button for ${location.displayName}: ${postScreenshot}`);
+
+    log(`Waiting 90 seconds after ${location.displayName} post click...`);
+    await delay(90000);
+}
+
+async function checkCarouselSuccess(page, titleText) {
+    return page.evaluate((searchText) => {
+        const headings = Array.from(document.querySelectorAll('h2'));
+        const heading = headings.find((h) => h.textContent.includes(searchText));
+        if (!heading) return false;
+
+        let section = heading.parentElement;
+        while (section && !section.classList.contains('mb-16')) {
+            section = section.parentElement;
+        }
+        if (!section) return false;
+
+        const statusDiv = section.querySelector('div.text-sm.text-gray-600');
+        return statusDiv && statusDiv.textContent.includes('Successfully posted to Instagram');
+    }, titleText);
+}
+
 async function automate() {
     let browser = null;
 
@@ -116,71 +166,12 @@ async function automate() {
 
         // Wait for any necessary elements and perform actions
         log('Waiting for page to be ready');
-        
-        // Process St Kilda carousel
-        log('Processing St Kilda carousel...');
-        await page.waitForSelector('#generate-images-btn-stkilda', { timeout: 120000 });
-        
-        // Click generate button for St Kilda
-        log('Clicking generate button for St Kilda');
-        await page.click('#generate-images-btn-stkilda');
-        
-        // Take a screenshot after clicking generate button for St Kilda
-        const stKildaScreenshot = IS_LOCAL_TEST ? './stkilda-generate-click.png' : 'stkilda-generate-click.png';
-        await page.screenshot({ path: stKildaScreenshot });
-        log(`Took screenshot after clicking generate button for St Kilda: ${stKildaScreenshot}`);
-        
-        // Wait for 90 seconds (increased from 45 seconds)
-        log('Waiting 90 seconds after St Kilda generate click...');
-        await delay(90000);
-        
-        // Wait for post button to appear for St Kilda
-        log('Waiting for post button to appear for St Kilda');
-        await page.waitForSelector('#post-instagram-btn-stkilda', { timeout: 120000 });
-        
-        // Click post button for St Kilda
-        log('Clicking post button for St Kilda');
-        await page.click('#post-instagram-btn-stkilda');
-        
-        // Take a screenshot after clicking post button for St Kilda
-        const stKildaPostScreenshot = IS_LOCAL_TEST ? './stkilda-post-click.png' : 'stkilda-post-click.png';
-        await page.screenshot({ path: stKildaPostScreenshot });
-        log(`Took screenshot after clicking post button for St Kilda: ${stKildaPostScreenshot}`);
-        
-        // Wait for 90 seconds (increased from 45 seconds)
-        log('Waiting 90 seconds after St Kilda post click...');
-        await delay(90000);
-        
-        // Process Fitzroy carousel
-        log('Processing Fitzroy carousel...');
-        await page.waitForSelector('#generate-images-btn-fitzroy', { timeout: 120000 });
-        
-        // Click generate button for Fitzroy
-        log('Clicking generate button for Fitzroy');
-        await page.click('#generate-images-btn-fitzroy');
-        
-        // Take a screenshot after clicking generate button for Fitzroy
-        const fitzroyScreenshot = IS_LOCAL_TEST ? './fitzroy-generate-click.png' : 'fitzroy-generate-click.png';
-        await page.screenshot({ path: fitzroyScreenshot });
-        log(`Took screenshot after clicking generate button for Fitzroy: ${fitzroyScreenshot}`);
-        
-        // Wait for 90 seconds (increased from 45 seconds)
-        log('Waiting 90 seconds after Fitzroy generate click...');
-        await delay(90000);
-        
-        // Wait for post button to appear for Fitzroy
-        log('Waiting for post button to appear for Fitzroy');
-        await page.waitForSelector('#post-instagram-btn-fitzroy', { timeout: 120000 });
-        
-        // Click post button for Fitzroy
-        log('Clicking post button for Fitzroy');
-        await page.click('#post-instagram-btn-fitzroy');
-        
-        // Take a screenshot after clicking post button for Fitzroy
-        const fitzroyPostScreenshot = IS_LOCAL_TEST ? './fitzroy-post-click.png' : 'fitzroy-post-click.png';
-        await page.screenshot({ path: fitzroyPostScreenshot });
-        log(`Took screenshot after clicking post button for Fitzroy: ${fitzroyPostScreenshot}`);
-        
+
+        // Process each location's carousel in turn
+        for (const location of LOCATIONS) {
+            await postLocationCarousel(page, location);
+        }
+
         // Wait for posting to complete - increased to 10 minutes
         log('Waiting for posting to complete (10 minutes)...');
         await delay(600000);
@@ -190,78 +181,31 @@ async function automate() {
         await page.screenshot({ path: finalScreenshot });
         log(`Took final screenshot after waiting: ${finalScreenshot}`);
 
-        // Check for success messages for both carousels
+        // Check for success messages for all carousels
         log('Checking for success messages...');
-        
-        // Look for success message for St Kilda carousel using standard DOM methods
-        const stKildaSuccess = await page.evaluate(() => {
-            // Find all h2 elements on the page
-            const headings = Array.from(document.querySelectorAll('h2'));
-            
-            // Find the one containing "St Kilda Gigs"
-            const stKildaHeading = headings.find(h => h.textContent.includes('St Kilda Gigs'));
-            if (!stKildaHeading) return false;
-            
-            // Get parent div (container)
-            let stKildaSection = stKildaHeading.parentElement;
-            // Sometimes need to go up another level to find the right container
-            while (stKildaSection && !stKildaSection.classList.contains('mb-16')) {
-                stKildaSection = stKildaSection.parentElement;
+
+        const results = [];
+        for (const location of LOCATIONS) {
+            const success = await checkCarouselSuccess(page, `${location.displayName} Gigs`);
+            results.push({ location, success });
+            if (success) {
+                log(`${location.displayName} carousel was successfully posted to Instagram`);
+            } else {
+                log(`${location.displayName} carousel posting failed or status not found`, true);
             }
-            
-            if (!stKildaSection) return false;
-            
-            // Find status div
-            const statusDiv = stKildaSection.querySelector('div.text-sm.text-gray-600');
-            return statusDiv && statusDiv.textContent.includes('Successfully posted to Instagram');
-        });
-        
-        // Look for success message for Fitzroy carousel using standard DOM methods
-        const fitzroySuccess = await page.evaluate(() => {
-            // Find all h2 elements on the page
-            const headings = Array.from(document.querySelectorAll('h2'));
-            
-            // Find the one containing "Fitzroy"
-            const fitzroyHeading = headings.find(h => h.textContent.includes('Fitzroy'));
-            if (!fitzroyHeading) return false;
-            
-            // Get parent div (container)
-            let fitzroySection = fitzroyHeading.parentElement;
-            // Sometimes need to go up another level to find the right container
-            while (fitzroySection && !fitzroySection.classList.contains('mb-16')) {
-                fitzroySection = fitzroySection.parentElement;
-            }
-            
-            if (!fitzroySection) return false;
-            
-            // Find status div
-            const statusDiv = fitzroySection.querySelector('div.text-sm.text-gray-600');
-            return statusDiv && statusDiv.textContent.includes('Successfully posted to Instagram');
-        });
-        
-        // In local test mode, be more forgiving about success
+        }
+
+        const anySuccess = results.some((r) => r.success);
+        const allSuccess = results.every((r) => r.success);
+
         if (IS_LOCAL_TEST) {
             // For local testing, count as success if any carousel posted successfully
-            if (stKildaSuccess || fitzroySuccess) {
-                if (stKildaSuccess && fitzroySuccess) {
-                    log('Both carousels were successfully posted to Instagram');
-                } else if (stKildaSuccess) {
-                    log('St Kilda carousel posted successfully, but Fitzroy failed or status not found', true);
-                } else {
-                    log('Fitzroy carousel posted successfully, but St Kilda failed or status not found', true);
-                }
-            } else {
-                if (!stKildaSuccess) log('St Kilda carousel posting failed or status not found', true);
-                if (!fitzroySuccess) log('Fitzroy carousel posting failed or status not found', true);
+            if (!anySuccess) {
                 throw new Error('Instagram posting was not successful - no carousels posted');
             }
         } else {
-            // In production mode on the Pi, require both to succeed
-            if (stKildaSuccess && fitzroySuccess) {
-                log('Both carousels were successfully posted to Instagram');
-            } else {
-                if (!stKildaSuccess) log('St Kilda carousel posting failed or status not found', true);
-                if (!fitzroySuccess) log('Fitzroy carousel posting failed or status not found', true);
+            // In production mode on the Pi, require all to succeed
+            if (!allSuccess) {
                 throw new Error('Instagram posting was not fully successful');
             }
         }
