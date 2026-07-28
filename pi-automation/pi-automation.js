@@ -167,25 +167,47 @@ async function automate() {
         // Wait for any necessary elements and perform actions
         log('Waiting for page to be ready');
 
-        // Process each location's carousel in turn
+        // Read gig counts for all locations before attempting any clicks -
+        // locations with zero gigs render no buttons at all, so we must
+        // know this in advance rather than risk a waitForSelector timeout
+        const gigCounts = await page.evaluate(() => {
+            const counts = {};
+            document.querySelectorAll('[data-location-slug]').forEach((el) => {
+                counts[el.dataset.locationSlug] = parseInt(el.dataset.gigCount, 10);
+            });
+            return counts;
+        });
+        log(`Gig counts: ${JSON.stringify(gigCounts)}`);
+
+        // Process each location's carousel in turn, skipping any with zero gigs
+        const attemptedLocations = [];
         for (const location of LOCATIONS) {
+            if (!gigCounts[location.slug]) {
+                log(`Skipping ${location.displayName} - no gigs today`);
+                continue;
+            }
+            attemptedLocations.push(location);
             await postLocationCarousel(page, location);
         }
+
+        if (attemptedLocations.length === 0) {
+            log('No locations had gigs today - nothing to post');
+        } else {
 
         // Wait for posting to complete - increased to 10 minutes
         log('Waiting for posting to complete (10 minutes)...');
         await delay(600000);
-        
+
         // Take a final screenshot after waiting
         const finalScreenshot = IS_LOCAL_TEST ? './after-waiting.png' : 'after-waiting.png';
         await page.screenshot({ path: finalScreenshot });
         log(`Took final screenshot after waiting: ${finalScreenshot}`);
 
-        // Check for success messages for all carousels
+        // Check for success messages, only for locations that were actually attempted
         log('Checking for success messages...');
 
         const results = [];
-        for (const location of LOCATIONS) {
+        for (const location of attemptedLocations) {
             const success = await checkCarouselSuccess(page, `${location.displayName} Gigs`);
             results.push({ location, success });
             if (success) {
@@ -204,10 +226,11 @@ async function automate() {
                 throw new Error('Instagram posting was not successful - no carousels posted');
             }
         } else {
-            // In production mode on the Pi, require all to succeed
+            // In production mode on the Pi, require all attempted locations to succeed
             if (!allSuccess) {
                 throw new Error('Instagram posting was not fully successful');
             }
+        }
         }
 
         // Clean up temp-images directory in GitHub repo
