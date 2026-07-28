@@ -1,12 +1,12 @@
 // src/constants/postcodes.js
-export const ST_KILDA_POSTCODES = ['3182', '3183', '3185']
-export const FITZROY_RICHMOND_POSTCODES = [
-  '3065',
-  '3066',
-  '3067',
-  '3068',
-  '3121',
-]
+import { LOCATIONS } from './locations.js'
+
+export const ST_KILDA_POSTCODES = LOCATIONS.find(
+  (l) => l.slug === 'stkilda'
+).postcodes
+export const FITZROY_RICHMOND_POSTCODES = LOCATIONS.find(
+  (l) => l.slug === 'fitzroy'
+).postcodes
 export const LML_URL_TODAY = 'https://lml.live/?dateRange=today'
 export const BRAND_BLUE = '#00B2E3'
 export const BRAND_ORANGE = '#FF5C35'
