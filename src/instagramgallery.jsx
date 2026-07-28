@@ -552,6 +552,39 @@ LocationTitleSlide.propTypes = {
   className: PropTypes.string
 };
 
+// Fits a location display name into the title slide: tries progressively
+// smaller single-line font sizes first, then falls back to greedy word-wrap
+// at the smallest size if it still doesn't fit on one line.
+function fitLocationTitle(displayName) {
+  const AVAILABLE_WIDTH = 444; // 540px card minus px-12 (48px) padding each side
+  const SIZES_PX = [56, 40, 35]; // 3.5rem, 2.5rem, 2.2rem
+
+  for (const fontSize of SIZES_PX) {
+    if (measureTextWidth(displayName, `${fontSize}px`, 'bold') <= AVAILABLE_WIDTH) {
+      return { lines: [displayName], fontSize };
+    }
+  }
+
+  // Doesn't fit as one line even at the smallest size - wrap into multiple lines
+  const fontSize = SIZES_PX[SIZES_PX.length - 1];
+  const words = displayName.split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach((word) => {
+    const candidate = currentLine ? `${currentLine} ${word}` : word;
+    if (measureTextWidth(candidate, `${fontSize}px`, 'bold') <= AVAILABLE_WIDTH) {
+      currentLine = candidate;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  });
+  if (currentLine) lines.push(currentLine);
+
+  return { lines, fontSize };
+}
+
 // LocationTitleSlide Component
 function LocationTitleSlide({ date, location, className = '' }) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
@@ -568,15 +601,24 @@ function LocationTitleSlide({ date, location, className = '' }) {
         <img src="./lml-logo.png" alt="Live Music Locator" className="w-32 h-32" />
       </div>
       <div className="text-center px-12">
-        {location === "St Kilda" ? (
-          <h1 className="text-white text-[3.5rem] font-bold mb-6">St Kilda</h1>
-        ) : (
-          <div className="-space-y-5">
-            <h1 className="text-white text-[2.2rem] font-bold">Fitzroy</h1>
-            <h1 className="text-white text-[2.2rem] font-bold mb-2">Collingwood</h1>
-            <h1 className="text-white text-[2.2rem] font-bold mb-2">Richmond</h1>
-          </div>
-        )}
+        {(() => {
+          const { lines, fontSize } = fitLocationTitle(location);
+          return (
+            <div className={lines.length > 1 ? '-space-y-5' : ''}>
+              {lines.map((line, i) => (
+                <h1
+                  key={i}
+                  className={`text-white font-bold ${
+                    lines.length === 1 ? 'mb-6' : 'mb-2'
+                  }`}
+                  style={{ fontSize: `${fontSize}px` }}
+                >
+                  {line}
+                </h1>
+              ))}
+            </div>
+          );
+        })()}
         <h2 className="text-white text-[2.2rem] mb-4">
           Gig Guide
         </h2>
