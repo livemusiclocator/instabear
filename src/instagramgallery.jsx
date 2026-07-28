@@ -7,15 +7,11 @@ import { toPng } from 'html-to-image';
 import { Octokit } from "@octokit/rest";
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { LOCATIONS } from './constants/locations.js';
 
 const octokit = new Octokit({
   auth: import.meta.env.VITE_GITHUB_TOKEN
 });
-
-
-// Postcode definitions
-const ST_KILDA_POSTCODES = ['3182', '3183', '3185'];
-const FITZROY_RICHMOND_POSTCODES = ['3065', '3066', '3067', '3068', '3121'];
 
 const getMelbourneDate = () => {
   return new Date().toLocaleDateString('en-AU', { 
@@ -959,19 +955,16 @@ export default function InstagramGallery() {
     return () => clearInterval(interval);
   }, [date, fetchGigs]);
 
-  // Filter gigs by location
-  const stKildaGigs = useMemo(() => {
-    return gigs.filter(gig => {
-      const postcode = getPostcode(gig.venue);
-      return ST_KILDA_POSTCODES.includes(postcode);
+  // Filter gigs by location, keyed by slug
+  const gigsBySlug = useMemo(() => {
+    const result = {};
+    LOCATIONS.forEach((loc) => {
+      result[loc.slug] = gigs.filter((gig) => {
+        const postcode = getPostcode(gig.venue);
+        return loc.postcodes.includes(postcode);
+      });
     });
-  }, [gigs]);
-
-  const fitzroyRichmondGigs = useMemo(() => {
-    return gigs.filter(gig => {
-      const postcode = getPostcode(gig.venue);
-      return FITZROY_RICHMOND_POSTCODES.includes(postcode);
-    });
+    return result;
   }, [gigs]);
 
   return (
@@ -993,23 +986,16 @@ export default function InstagramGallery() {
           <div className="text-center py-12">Loading gigs...</div>
         ) : (
           <>
-            {/* St Kilda Carousel */}
-            <Carousel
-              title="St Kilda Gigs"
-              location="St Kilda"
-              date={date}
-              gigs={stKildaGigs}
-              id="stkilda"
-            />
-
-            {/* Fitzroy/Collingwood/Richmond Carousel */}
-            <Carousel
-              title="Fitzroy, Collingwood & Richmond Gigs"
-              location="Fitzroy, Collingwood and Richmond"
-              date={date}
-              gigs={fitzroyRichmondGigs}
-              id="fitzroy"
-            />
+            {LOCATIONS.map((loc) => (
+              <Carousel
+                key={loc.slug}
+                title={`${loc.displayName} Gigs`}
+                location={loc.displayName}
+                date={date}
+                gigs={gigsBySlug[loc.slug]}
+                id={loc.slug}
+              />
+            ))}
           </>
         )}
       </div>
