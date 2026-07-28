@@ -1,11 +1,10 @@
 import puppeteer from 'puppeteer';
-import { appendFileSync, readFileSync } from 'fs';
+import { appendFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { Octokit } from '@octokit/rest';
 import process from 'process';
 import dotenv from 'dotenv';
-import fetch from 'node-fetch';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -20,7 +19,6 @@ if (IS_LOCAL_TEST) {
 
 // Check for required environment variables
 const REQUIRED_ENV_VARS = {
-    'SLACK_WEBHOOK_URL': 'Slack webhook URL for notifications',
     'GITHUB_TOKEN': 'GitHub token for repo operations'
 };
 
@@ -69,156 +67,9 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Function to send Slack notifications with retry mechanism
-async function sendSlackNotification(success, error = null, retryCount = 3) {
-    try {
-        // Skip Slack notifications in local test mode unless specifically configured
-        if (IS_LOCAL_TEST && (!process.env.SLACK_WEBHOOK_URL || process.env.SLACK_WEBHOOK_URL === 'your_slack_webhook_url_here')) {
-            log('Running in local test mode with no Slack webhook configured - skipping notification');
-            return;
-        }
-        
-        // Check if Slack webhook URL is configured
-        const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
-        if (!slackWebhookUrl || slackWebhookUrl === 'your_slack_webhook_url_here') {
-            log('Slack webhook URL not configured, skipping notification');
-            return;
-        }
-
-        // Validate webhook URL format
-        if (!slackWebhookUrl.startsWith('https://hooks.slack.com/')) {
-            log(`Invalid Slack webhook URL format: ${slackWebhookUrl.substring(0, 15)}... - should start with https://hooks.slack.com/`, true);
-            return;
-        }
-
-        log('Sending Slack notification...');
-
-        // Prepare status text and color
-        const status = success ? 'Success' : 'Failed';
-        const color = success ? '#36a64f' : '#ff0000';
-        const timestamp = new Date().toLocaleString('en-AU', {
-            timeZone: 'Australia/Melbourne',
-            dateStyle: 'full',
-            timeStyle: 'long'
-        });
-        
-        // Get recent logs (last 15 lines)
-        let logExcerpt = '';
-        try {
-            const fullLog = readFileSync(LOG_FILE, 'utf8');
-            const logLines = fullLog.split('\n');
-            logExcerpt = logLines.slice(-15).join('\n');
-        } catch (err) {
-            logExcerpt = 'Could not read log file';
-            log(`Error reading log file: ${err.message}`, true);
-        }
-
-        // Prepare message payload
-        const message = {
-            text: `Instagram Posting ${status}`,
-            blocks: [
-                {
-                    type: "header",
-                    text: {
-                        type: "plain_text",
-                        text: `Instagram Posting: ${status}`,
-                        emoji: true
-                    }
-                },
-                {
-                    type: "section",
-                    text: {
-                        type: "mrkdwn",
-                        text: `*Time:* ${timestamp}\n*Status:* ${status}\n*Recipient:* gigs@lml.live`
-                    }
-                }
-            ],
-            attachments: [
-                {
-                    color: color,
-                    blocks: [
-                        {
-                            type: "section",
-                            text: {
-                                type: "mrkdwn",
-                                text: "*Recent Logs:*\n```" + logExcerpt + "```"
-                            }
-                        }
-                    ]
-                }
-            ]
-        };
-
-        // Add error details if there was an error
-        if (error) {
-            message.blocks.push({
-                type: "section",
-                text: {
-                    type: "mrkdwn",
-                    text: `*Error:*\n\`\`\`${error.message}\`\`\``
-                }
-            });
-        }
-
-        // Send the message to Slack with timeout
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-            
-            const response = await fetch(slackWebhookUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(message),
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) {
-                const responseText = await response.text().catch(() => 'No response text');
-                throw new Error(`Slack API responded with status: ${response.status} - ${responseText}`);
-            }
-            
-            log('Slack notification sent successfully');
-        } catch (fetchError) {
-            // Retry logic for network errors
-            if (retryCount > 0) {
-                const delayMs = 5000; // 5 second delay between retries
-                log(`Slack notification failed, retrying in 5 seconds... (${retryCount} attempts left)`, true);
-                await new Promise(resolve => setTimeout(resolve, delayMs));
-                return sendSlackNotification(success, error, retryCount - 1);
-            } else {
-                const errorMessage = `Failed to send Slack notification after retries: ${fetchError.message}`;
-                log(errorMessage, true);
-                // Continue execution instead of throwing (don't let Slack failures kill the automation)
-            }
-        }
-    } catch (slackError) {
-        log(`Failed to send Slack notification: ${slackError.message}`, true);
-        // Save notification to a local file as backup
-        try {
-            const backupFile = join(__dirname, 'failed-slack-notifications.json');
-            const timestamp = new Date().toISOString();
-            const backupData = {
-                timestamp,
-                success,
-                error: error ? error.message : null
-            };
-            appendFileSync(backupFile, JSON.stringify(backupData) + '\n');
-            log('Saved failed notification to backup file');
-        } catch (backupError) {
-            log(`Failed to save notification backup: ${backupError.message}`, true);
-        }
-    }
-}
-
 async function automate() {
     let browser = null;
-    let success = false;
-    let errorDetails = null;
-    
+
     try {
         log('Starting automation process');
 
@@ -399,7 +250,6 @@ async function automate() {
                 } else {
                     log('Fitzroy carousel posted successfully, but St Kilda failed or status not found', true);
                 }
-                success = true;
             } else {
                 if (!stKildaSuccess) log('St Kilda carousel posting failed or status not found', true);
                 if (!fitzroySuccess) log('Fitzroy carousel posting failed or status not found', true);
@@ -409,7 +259,6 @@ async function automate() {
             // In production mode on the Pi, require both to succeed
             if (stKildaSuccess && fitzroySuccess) {
                 log('Both carousels were successfully posted to Instagram');
-                success = true;
             } else {
                 if (!stKildaSuccess) log('St Kilda carousel posting failed or status not found', true);
                 if (!fitzroySuccess) log('Fitzroy carousel posting failed or status not found', true);
@@ -460,22 +309,11 @@ async function automate() {
         log('Automation completed successfully');
     } catch (error) {
         log(`Error during automation: ${error.message}`, true);
-        errorDetails = error;
         throw error;
     } finally {
         if (browser) {
             await browser.close();
             log('Browser closed');
-        }
-        
-        // Only send notification if there was no success message within 10 minutes
-        if (!success) {
-            // Send notification with failure status (don't await in case of network issues)
-            sendSlackNotification(success, errorDetails).catch(notifyError => {
-                log(`Error in Slack notification: ${notifyError.message}`, true);
-            });
-        } else {
-            log('Instagram posting successful, no Slack notification needed');
         }
     }
 }
