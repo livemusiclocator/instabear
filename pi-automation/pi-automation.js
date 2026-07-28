@@ -248,11 +248,14 @@ async function automate() {
         // Navigate to the GitHub Pages URL with cache-busting parameter
         const timestamp = new Date().getTime();
         log('Navigating to GitHub Pages');
-        await page.goto(`${GITHUB_PAGES_URL}?nocache=${timestamp}`, {
+        const navResponse = await page.goto(`${GITHUB_PAGES_URL}?nocache=${timestamp}`, {
             waitUntil: 'networkidle0',
             timeout: 120000 // 120 seconds (2 minutes) timeout for page load
         });
-        
+
+        // TEMP DEBUG: confirm what Chromium actually received
+        log(`DEBUG navigation response: status=${navResponse.status()} url=${navResponse.url()}`);
+
         // Take a screenshot for debugging
         const screenshotPath = IS_LOCAL_TEST ? './page-loaded.png' : 'page-loaded.png';
         await page.screenshot({ path: screenshotPath });
