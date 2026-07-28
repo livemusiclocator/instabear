@@ -167,6 +167,14 @@ async function automate() {
         // Wait for any necessary elements and perform actions
         log('Waiting for page to be ready');
 
+        // Wait for the gig data to finish loading before reading counts -
+        // page.goto()'s networkidle0 can resolve before the app's async
+        // gig fetch (kicked off from a useEffect after mount) has started,
+        // especially on this Pi's slower CPU. Without this wait, a still-
+        // loading page would read as "zero gigs everywhere" and silently
+        // report success while posting nothing.
+        await page.waitForSelector('[data-location-slug]', { timeout: 120000 });
+
         // Read gig counts for all locations before attempting any clicks -
         // locations with zero gigs render no buttons at all, so we must
         // know this in advance rather than risk a waitForSelector timeout
@@ -177,6 +185,11 @@ async function automate() {
             });
             return counts;
         });
+
+        if (Object.keys(gigCounts).length !== LOCATIONS.length || Object.values(gigCounts).some((count) => Number.isNaN(count))) {
+            throw new Error(`Gig count read incomplete or invalid: ${JSON.stringify(gigCounts)} (expected ${LOCATIONS.length} locations)`);
+        }
+
         log(`Gig counts: ${JSON.stringify(gigCounts)}`);
 
         // Process each location's carousel in turn, skipping any with zero gigs
