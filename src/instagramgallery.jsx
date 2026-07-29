@@ -239,14 +239,101 @@ async function postToInstagram(imageUrls, captions) {
     }
 
     console.log('Carousel posted successfully:', publishData);
-    return { success: true, postId: publishData.id };
+    return { success: true, postId: publishData.id, caption: combinedCaption };
 
   } catch (error) {
     console.error('Error posting carousel:', error);
-    return { 
-      success: false, 
+    return {
+      success: false,
       error: error.message,
-      details: error.response?.data || error 
+      details: error.response?.data || error
+    };
+  }
+}
+
+// Facebook posting function - reuses the same images and caption already
+// prepared for Instagram. Uses the same access token (VITE_INSTAGRAM_ACCESS_TOKEN)
+// since the Facebook Page and Instagram Business Account share one app/token.
+async function postToFacebook(imageUrls, caption) {
+  const INSTAGRAM_ACCESS_TOKEN = import.meta.env.VITE_INSTAGRAM_ACCESS_TOKEN;
+
+  try {
+    if (!INSTAGRAM_ACCESS_TOKEN) {
+      throw new Error('Missing Instagram access token (also used for Facebook)');
+    }
+
+    // Step 1: Get the Facebook Page ID and Page Access Token
+    console.log('Fetching Facebook Page access token...');
+    const accountsResponse = await fetch(
+      `https://graph.facebook.com/v18.0/me/accounts?access_token=${INSTAGRAM_ACCESS_TOKEN}`
+    );
+    const accountsData = await accountsResponse.json();
+    console.log('Facebook accounts response:', accountsData);
+
+    if (!accountsData.data || accountsData.data.length === 0) {
+      throw new Error(`No Facebook Pages found for this account. Response: ${JSON.stringify(accountsData)}`);
+    }
+
+    const page = accountsData.data[0];
+    const pageId = page.id;
+    const pageAccessToken = page.access_token;
+
+    // Step 2: Upload each image, unpublished, to get photo IDs
+    const photoIds = [];
+    for (const imageUrl of imageUrls) {
+      console.log(`Uploading image to Facebook: ${imageUrl}`);
+
+      const params = new URLSearchParams({
+        url: imageUrl,
+        published: 'false',
+        access_token: pageAccessToken
+      });
+
+      const response = await fetch(`https://graph.facebook.com/v18.0/${pageId}/photos`, {
+        method: 'POST',
+        body: params
+      });
+
+      const data = await response.json();
+      console.log('Facebook photo upload response:', data);
+
+      if (!data.id) {
+        throw new Error(`Failed to upload image to Facebook: ${imageUrl}. Response: ${JSON.stringify(data)}`);
+      }
+
+      photoIds.push(data.id);
+      console.log(`Image uploaded to Facebook successfully. Photo ID: ${data.id}`);
+    }
+
+    // Step 3: Create the feed post with all photos attached
+    console.log('Creating Facebook feed post...');
+    const feedParams = new URLSearchParams({
+      message: caption,
+      attached_media: JSON.stringify(photoIds.map(id => ({ media_fbid: id }))),
+      access_token: pageAccessToken
+    });
+
+    const feedResponse = await fetch(`https://graph.facebook.com/v18.0/${pageId}/feed`, {
+      method: 'POST',
+      body: feedParams
+    });
+
+    const feedData = await feedResponse.json();
+    console.log('Facebook feed post response:', feedData);
+
+    if (!feedData.id) {
+      throw new Error(`Failed to create Facebook post. Response: ${JSON.stringify(feedData)}`);
+    }
+
+    console.log('Facebook post created successfully:', feedData);
+    return { success: true, postId: feedData.id };
+
+  } catch (error) {
+    console.error('Error posting to Facebook:', error);
+    return {
+      success: false,
+      error: error.message,
+      details: error.response?.data || error
     };
   }
 }
@@ -645,7 +732,8 @@ Carousel.propTypes = {
   location: PropTypes.string.isRequired,
   date: PropTypes.string.isRequired,
   gigs: PropTypes.array.isRequired,
-  id: PropTypes.string.isRequired
+  id: PropTypes.string.isRequired,
+  channels: PropTypes.array.isRequired
 };
 
 // Carousel Component
@@ -654,7 +742,8 @@ function Carousel({
   location,
   date,
   gigs,
-  id
+  id,
+  channels
 }) {
   // Refs to each slide DOM element
   const slideRefs = useRef([]);
@@ -756,35 +845,56 @@ function Carousel({
 
     // Removed confirmation dialog for automation
     setIsPosting(true);
-    setUploadStatus('Posting to Instagram...');
+    setUploadStatus('Posting...');
 
     try {
-      console.log('DEBUG: Preparing to post to Instagram');
-      
+      console.log('DEBUG: Preparing to post');
+
       // Extract all venue handles from captions for debugging
       const allHandles = [];
       uploadedImages.captions.forEach((caption, index) => {
         const handleMatches = caption.match(/@[a-zA-Z0-9_.]+/g) || [];
         console.log(`DEBUG: Caption ${index + 1} contains ${handleMatches.length} venue handles:`, handleMatches);
-        
+
         handleMatches.forEach(handle => {
           if (!allHandles.includes(handle)) {
             allHandles.push(handle);
           }
         });
       });
-      
+
       console.log('DEBUG: Found total of', allHandles.length, 'unique venue handles:', allHandles);
-      console.log('DEBUG: These handles should appear in the Instagram post caption');
-      
-      const result = await postToInstagram(uploadedImages.urls, uploadedImages.captions);
-      if (result.success) {
-        setUploadStatus('Successfully posted to Instagram!');
-      } else {
-        setUploadStatus(`Instagram posting failed: ${result.error}`);
+      console.log('DEBUG: These handles should appear in the post captions');
+
+      const statusParts = [];
+      let sharedCaption = null;
+
+      if (channels.includes('instagram')) {
+        const result = await postToInstagram(uploadedImages.urls, uploadedImages.captions);
+        if (result.success) {
+          sharedCaption = result.caption;
+          statusParts.push('Successfully posted to Instagram!');
+        } else {
+          statusParts.push(`Instagram posting failed: ${result.error}`);
+        }
       }
+
+      if (channels.includes('facebook')) {
+        // Reuse Instagram's exact caption if it just ran (same randomized
+        // venue mentions on both platforms); otherwise build it fresh -
+        // this location may be configured for Facebook only.
+        const caption = sharedCaption ?? buildCombinedCaption(uploadedImages.captions);
+        const fbResult = await postToFacebook(uploadedImages.urls, caption);
+        if (fbResult.success) {
+          statusParts.push('Successfully posted to Facebook!');
+        } else {
+          statusParts.push(`Facebook posting failed: ${fbResult.error}`);
+        }
+      }
+
+      setUploadStatus(statusParts.join(' | '));
     } catch (err) {
-      setUploadStatus(`Instagram posting failed: ${err.message}`);
+      setUploadStatus(`Posting failed: ${err.message}`);
     } finally {
       setIsPosting(false);
     }
@@ -1055,6 +1165,7 @@ export default function InstagramGallery() {
                 date={date}
                 gigs={gigsBySlug[loc.slug]}
                 id={loc.slug}
+                channels={loc.channels}
               />
             ))}
           </>
