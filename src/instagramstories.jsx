@@ -122,7 +122,7 @@ export default function InstagramStories() {
   return (
     <div className="min-h-screen bg-white p-8">
       <h2 className="text-4xl font-bold mb-4 mx-auto text-center mb-[32px]">
-        Stories Generator
+        Stories Generator (unused)
       </h2>
       <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
         <div className="flex items-center gap-4 justify-center">

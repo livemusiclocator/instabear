@@ -1143,6 +1143,9 @@ export default function InstagramGallery() {
 
   return (
     <div className="min-h-screen bg-white p-8" data-fetch-error={error || undefined}>
+      <h2 className="text-4xl font-bold mb-8 mx-auto text-center">
+        Gig Guide Posts
+      </h2>
       <div className="max-w-xl mx-auto mb-8 p-4 bg-gray-100 rounded-lg">
         <div className="flex items-center gap-4 justify-center">
           <div className="text-gray-900">
