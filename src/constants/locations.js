@@ -3,11 +3,13 @@ export const LOCATIONS = [
     slug: 'stkilda',
     displayName: 'St Kilda',
     postcodes: ['3182', '3183', '3185'],
+    channels: ['instagram', 'facebook'],
   },
   {
     slug: 'fitzroy',
     displayName: 'Fitzroy, Collingwood and Richmond',
     postcodes: ['3065', '3066', '3067', '3068', '3121'],
+    channels: ['instagram', 'facebook'],
   },
   {
     slug: 'geelong',
@@ -17,5 +19,6 @@ export const LOCATIONS = [
       '3219', '3220', '3221', '3222', '3223', '3224', '3225', '3226',
       '3227', '3340',
     ],
+    channels: ['instagram', 'facebook'],
   },
 ]
