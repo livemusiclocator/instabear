@@ -106,14 +106,22 @@ Surfaced during this conversation, deliberately not addressed in this spec:
   for full editorial opinion content, which the team doesn't have the
   staffing for.
 - **Artist tagging** (in addition to existing venue tagging) — valuable in
-  principle (artist followings can dwarf venue followings) but has no
-  reliable automated path: Instagram's API doesn't support search-by-name
-  to resolve a handle, and the venue-tagging pattern (hand-curated JSON)
-  doesn't scale to an effectively unbounded set of touring artists.
-  Worth revisiting only if `api.lml.live`'s own gig data turns out to
-  already carry artist social handles as structured data.
+  principle (artist followings can dwarf venue followings). Update: confirmed
+  after this spec was written that `api.lml.live`'s gig data does carry act
+  social URLs (`sets[].act.instagram_url`/`facebook_url`) for a minority of
+  gigs (~14% in one sample), which removes the original blocker (no reliable
+  name→handle matching) - see the parked act-tagging brainstorm. Still not
+  designed/built.
 - **Hashtag strategy** — cheap, could ride along with a future caption
   change, not designed here.
+- **Real Facebook Page tagging for venues** — confirmed live (screenshot,
+  2026-07-29) that the `@handle` venue mentions reused from the Instagram
+  caption render as inert plain text on Facebook, not real tags (no blue
+  link, no notification to the venue). This was an accepted trade-off when
+  designing this feature (reuse the same caption as-is), not a bug. Real
+  Facebook tagging would need each venue's Facebook Page ID (not Instagram
+  username) and Facebook's own mention syntax - a separate lookup from the
+  existing `venueInstagramHandles.json`, not designed here.
 
 ## Testing
 
