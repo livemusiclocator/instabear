@@ -24,6 +24,86 @@ const getMelbourneDate = () => {
 const getPublicUrl = () => {
   return `https://lml.live/?dateRange=today`;  // Always use lml.live for the website URL
 };
+// Builds the combined caption used for both Instagram and Facebook posts:
+// title slide caption plus a fair, randomized selection of up to 19 venue
+// @handle mentions pulled from the per-slide captions (Instagram caps
+// mentions around 20-30; kept well under that limit).
+function buildCombinedCaption(captions) {
+  let combinedCaption = captions[0]; // Start with title slide caption
+
+  // Extract venue handles from all other captions
+  const venueHandleMatches = [];
+  for (let i = 1; i < captions.length; i++) {
+    const matches = captions[i].match(/@[a-zA-Z0-9_.]+/g) || [];
+    matches.forEach(match => {
+      if (!venueHandleMatches.includes(match)) {
+        venueHandleMatches.push(match);
+      }
+    });
+  }
+
+  // Instagram has a limit on mentions (around 20-30)
+  // Implement a fair, randomized selection algorithm with maximum of 19 venues
+  const MAX_VENUE_MENTIONS = 19;
+  let mentionedVenues = [];
+
+  if (venueHandleMatches.length <= MAX_VENUE_MENTIONS) {
+    // If we're under the limit, use all venues
+    mentionedVenues = venueHandleMatches;
+  } else {
+    console.log(`WARNING: Found ${venueHandleMatches.length} venues but Instagram has a limit of ${MAX_VENUE_MENTIONS}.`);
+
+    // Create a mapping of venues by slide/caption
+    const venuesBySlide = {};
+    for (let i = 1; i < captions.length; i++) {
+      const slideMatches = captions[i].match(/@[a-zA-Z0-9_.]+/g) || [];
+      venuesBySlide[i] = slideMatches.filter(match => !mentionedVenues.includes(match));
+    }
+
+    // Step 1: Ensure at least one venue from each slide (if possible)
+    // This maintains fairness across different locations/slides
+    const slideIndices = Object.keys(venuesBySlide);
+    // Shuffle the slide order for randomness
+    slideIndices.sort(() => Math.random() - 0.5);
+
+    slideIndices.forEach(slideIndex => {
+      if (mentionedVenues.length < MAX_VENUE_MENTIONS && venuesBySlide[slideIndex].length > 0) {
+        // Randomly select one venue from this slide
+        const randomIndex = Math.floor(Math.random() * venuesBySlide[slideIndex].length);
+        const venueToAdd = venuesBySlide[slideIndex][randomIndex];
+
+        if (!mentionedVenues.includes(venueToAdd)) {
+          mentionedVenues.push(venueToAdd);
+        }
+      }
+    });
+
+    // Step 2: Fill remaining slots with randomly selected venues
+    if (mentionedVenues.length < MAX_VENUE_MENTIONS) {
+      // Create a flat list of remaining handles that haven't been added yet
+      const remainingHandles = venueHandleMatches.filter(handle => !mentionedVenues.includes(handle));
+
+      // Shuffle the remaining handles for randomness
+      remainingHandles.sort(() => Math.random() - 0.5);
+
+      // Add as many as possible until we hit the limit
+      while (mentionedVenues.length < MAX_VENUE_MENTIONS && remainingHandles.length > 0) {
+        mentionedVenues.push(remainingHandles.shift());
+      }
+    }
+
+    console.log(`DEBUG: Fair random venue selection - chosen ${mentionedVenues.length} venues from ${venueHandleMatches.length} total`);
+  }
+
+  // Add venue handles to the caption with updated text
+  if (mentionedVenues.length > 0) {
+    combinedCaption += '\n\nShoutout to a random selection of today\'s venues (often there are too many to @ here): ' + mentionedVenues.join(' ');
+    console.log(`DEBUG: Added ${mentionedVenues.length} venue handles to caption`);
+  }
+
+  return combinedCaption;
+}
+
 // Instagram posting function
 async function postToInstagram(imageUrls, captions) {
   console.log('Environment variables:', {
@@ -89,80 +169,9 @@ async function postToInstagram(imageUrls, captions) {
 
     // Step 2: Create carousel container
     console.log('Creating carousel container with media IDs:', mediaIds);
-    
-    // Create a combined caption that includes venue handles from all slides
-    let combinedCaption = captions[0]; // Start with title slide caption
-    
-    // Extract venue handles from all other captions
-    const venueHandleMatches = [];
-    for (let i = 1; i < captions.length; i++) {
-      const matches = captions[i].match(/@[a-zA-Z0-9_.]+/g) || [];
-      matches.forEach(match => {
-        if (!venueHandleMatches.includes(match)) {
-          venueHandleMatches.push(match);
-        }
-      });
-    }
-    
-    // Instagram has a limit on mentions (around 20-30)
-    // Implement a fair, randomized selection algorithm with maximum of 19 venues
-    const MAX_VENUE_MENTIONS = 19;
-    let mentionedVenues = [];
-    
-    if (venueHandleMatches.length <= MAX_VENUE_MENTIONS) {
-      // If we're under the limit, use all venues
-      mentionedVenues = venueHandleMatches;
-    } else {
-      console.log(`WARNING: Found ${venueHandleMatches.length} venues but Instagram has a limit of ${MAX_VENUE_MENTIONS}.`);
-      
-      // Create a mapping of venues by slide/caption
-      const venuesBySlide = {};
-      for (let i = 1; i < captions.length; i++) {
-        const slideMatches = captions[i].match(/@[a-zA-Z0-9_.]+/g) || [];
-        venuesBySlide[i] = slideMatches.filter(match => !mentionedVenues.includes(match));
-      }
-      
-      // Step 1: Ensure at least one venue from each slide (if possible)
-      // This maintains fairness across different locations/slides
-      const slideIndices = Object.keys(venuesBySlide);
-      // Shuffle the slide order for randomness
-      slideIndices.sort(() => Math.random() - 0.5);
-      
-      slideIndices.forEach(slideIndex => {
-        if (mentionedVenues.length < MAX_VENUE_MENTIONS && venuesBySlide[slideIndex].length > 0) {
-          // Randomly select one venue from this slide
-          const randomIndex = Math.floor(Math.random() * venuesBySlide[slideIndex].length);
-          const venueToAdd = venuesBySlide[slideIndex][randomIndex];
-          
-          if (!mentionedVenues.includes(venueToAdd)) {
-            mentionedVenues.push(venueToAdd);
-          }
-        }
-      });
-      
-      // Step 2: Fill remaining slots with randomly selected venues
-      if (mentionedVenues.length < MAX_VENUE_MENTIONS) {
-        // Create a flat list of remaining handles that haven't been added yet
-        const remainingHandles = venueHandleMatches.filter(handle => !mentionedVenues.includes(handle));
-        
-        // Shuffle the remaining handles for randomness
-        remainingHandles.sort(() => Math.random() - 0.5);
-        
-        // Add as many as possible until we hit the limit
-        while (mentionedVenues.length < MAX_VENUE_MENTIONS && remainingHandles.length > 0) {
-          mentionedVenues.push(remainingHandles.shift());
-        }
-      }
-      
-      console.log(`DEBUG: Fair random venue selection - chosen ${mentionedVenues.length} venues from ${venueHandleMatches.length} total`);
-    }
-    
-    // Add venue handles to the caption with updated text
-    if (mentionedVenues.length > 0) {
-      combinedCaption += '\n\nShoutout to a random selection of today\'s venues (often there are too many to @ here): ' + mentionedVenues.join(' ');
-      console.log(`DEBUG: Added ${mentionedVenues.length} venue handles to caption`);
-    }
-    
+
+    const combinedCaption = buildCombinedCaption(captions);
+
     const carouselParams = new URLSearchParams({
       media_type: 'CAROUSEL',
       children: mediaIds.join(','),
