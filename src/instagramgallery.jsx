@@ -645,7 +645,8 @@ function GigPanel({ gig, isLast }) {
 LocationTitleSlide.propTypes = {
   date: PropTypes.string.isRequired,
   location: PropTypes.string.isRequired,
-  className: PropTypes.string
+  className: PropTypes.string,
+  slideRef: PropTypes.object
 };
 
 // Fits a location display name into the title slide: tries progressively
@@ -682,7 +683,7 @@ function fitLocationTitle(displayName) {
 }
 
 // LocationTitleSlide Component
-function LocationTitleSlide({ date, location, className = '' }) {
+function LocationTitleSlide({ date, location, className = '', slideRef }) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     timeZone: 'Australia/Melbourne',
     weekday: 'long',
@@ -692,7 +693,7 @@ function LocationTitleSlide({ date, location, className = '' }) {
   });
 
   return (
-    <div className={`location-title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center ${className}`}>
+    <div ref={slideRef} className={`location-title-slide w-[540px] h-[540px] bg-gray-900 mx-auto rounded-3xl overflow-hidden shadow-lg relative flex flex-col items-center ${className}`}>
       <div className="mt-6 mb-4">
         <img src="./lml-logo.png" alt="Live Music Locator" className="w-32 h-32" />
       </div>
@@ -747,6 +748,7 @@ function Carousel({
 }) {
   // Refs to each slide DOM element
   const slideRefs = useRef([]);
+  const titleSlideRef = useRef(null);
 
   // State for this carousel
   const [uploadedImages, setUploadedImages] = useState(null);
@@ -797,7 +799,7 @@ function Carousel({
       };
 
       // Title slide
-      const titleSlide = document.querySelector(`.location-title-slide-${id}`);
+      const titleSlide = titleSlideRef.current;
       if (titleSlide) {
         const dataUrl = await toPng(titleSlide, options);
         const formattedDate = date.replace(/-/g, '');
@@ -947,6 +949,7 @@ function Carousel({
           date={date}
           location={location}
           className={`location-title-slide-${id}`}
+          slideRef={titleSlideRef}
         />
 
         {/* Gig slides - limit to 9 slides (10 total with title) */}
