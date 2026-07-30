@@ -219,20 +219,31 @@ async function postToInstagram(imageUrls, captions) {
     }
 
     // Step 3: Publish the carousel
+    // Even after status_code === 'FINISHED', publish can still intermittently
+    // fail with "Media ID is not available" (error_subcode 2207027) - Meta's
+    // own error message says to just wait and retry.
     console.log('Publishing carousel...');
-    
+
     const publishParams = new URLSearchParams({
       creation_id: carouselContainerId,
       access_token: INSTAGRAM_ACCESS_TOKEN
     });
 
-    const publishResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish`, {
-      method: 'POST',
-      body: publishParams
-    });
+    let publishData = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const publishResponse = await fetch(`https://graph.facebook.com/v18.0/${INSTAGRAM_BUSINESS_ACCOUNT_ID}/media_publish`, {
+        method: 'POST',
+        body: publishParams
+      });
 
-    const publishData = await publishResponse.json();
-    console.log('Publish response:', publishData);
+      publishData = await publishResponse.json();
+      console.log(`Publish attempt ${attempt + 1} response:`, publishData);
+
+      if (publishData.id) break;
+      if (publishData.error?.error_subcode !== 2207027) break;
+
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
 
     if (!publishData.id) {
       throw new Error(`Failed to publish carousel. Response: ${JSON.stringify(publishData)}`);
