@@ -665,10 +665,17 @@ LocationTitleSlide.propTypes = {
 // at the smallest size if it still doesn't fit on one line.
 function fitLocationTitle(displayName) {
   const AVAILABLE_WIDTH = 444; // 540px card minus px-12 (48px) padding each side
+  // measureTextWidth resolves the browser's default font stack, which can
+  // differ between this measurement (dev/CI) and the Puppeteer/Chromium
+  // environment that actually renders the posted image (Raspberry Pi, ARM
+  // Linux) - a close-to-exact-fit measured here can genuinely overflow
+  // there. Budget against a shrunk width so borderline cases wrap instead
+  // of clipping.
+  const MAX_TEXT_WIDTH = AVAILABLE_WIDTH * 0.85;
   const SIZES_PX = [56, 40, 35]; // 3.5rem, 2.5rem, 2.2rem
 
   for (const fontSize of SIZES_PX) {
-    if (measureTextWidth(displayName, `${fontSize}px`, 'bold') <= AVAILABLE_WIDTH) {
+    if (measureTextWidth(displayName, `${fontSize}px`, 'bold') <= MAX_TEXT_WIDTH) {
       return { lines: [displayName], fontSize };
     }
   }
@@ -681,7 +688,7 @@ function fitLocationTitle(displayName) {
 
   words.forEach((word) => {
     const candidate = currentLine ? `${currentLine} ${word}` : word;
-    if (measureTextWidth(candidate, `${fontSize}px`, 'bold') <= AVAILABLE_WIDTH) {
+    if (measureTextWidth(candidate, `${fontSize}px`, 'bold') <= MAX_TEXT_WIDTH) {
       currentLine = candidate;
     } else {
       if (currentLine) lines.push(currentLine);
