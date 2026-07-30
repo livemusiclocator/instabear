@@ -1065,12 +1065,17 @@ export default function InstagramGallery() {
     setError(null);
     try {
       console.log(`Fetching gigs for ${selectedDate}...`);
-      const response = await fetch(
-        `https://api.lml.live/gigs/query?location=melbourne&date_from=${selectedDate}&date_to=${selectedDate}`
+      const apiLocations = [...new Set(LOCATIONS.map((loc) => loc.apiLocation))];
+      const responses = await Promise.all(
+        apiLocations.map((apiLocation) => {
+          const url = `https://api.lml.live/gigs/query?location=${apiLocation}&date_from=${selectedDate}&date_to=${selectedDate}`;
+          console.log(`API URL: ${url}`);
+          return fetch(url).then((res) => res.json());
+        })
       );
-      console.log(`API URL: https://api.lml.live/gigs/query?location=melbourne&date_from=${selectedDate}&date_to=${selectedDate}`);
-
-      const data = await response.json();
+      const gigsById = new Map();
+      responses.flat().forEach((gig) => gigsById.set(gig.id, gig));
+      const data = [...gigsById.values()];
       // Log a sample of raw venue IDs from API for debugging
       if (data.length > 0) {
         console.log('DEBUG: API Response Venue ID Format Check:', {
