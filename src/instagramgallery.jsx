@@ -509,6 +509,36 @@ console.log('DEBUG: Loaded venue Instagram handles:', {
   sampleHandles: Object.keys(venueHandles).slice(0, 5).map(id => ({ id, handle: venueHandles[id] }))
 });
 
+const INSTAGRAM_NON_PROFILE_PATHS = new Set([
+  'explore', 'accounts', 'reel', 'reels', 'p', 'tv', 'stories',
+]);
+
+// Validates an act's Instagram URL into a taggable @handle, rejecting
+// junk placeholder URLs like https://www.instagram.com/?hl=en that
+// api.lml.live sometimes returns instead of a real profile link.
+// eslint-disable-next-line react-refresh/only-export-components
+export function extractInstagramHandle(url) {
+  if (!url) return null;
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+
+  const hostname = parsed.hostname.replace(/^www\./, '').toLowerCase();
+  if (hostname !== 'instagram.com') return null;
+
+  const segments = parsed.pathname.split('/').filter(Boolean);
+  const username = segments[0];
+  if (!username) return null;
+  if (INSTAGRAM_NON_PROFILE_PATHS.has(username.toLowerCase())) return null;
+  if (!/^[A-Za-z0-9._]+$/.test(username)) return null;
+
+  return `@${username}`;
+}
+
 function generateCaption(slideGigs, slideIndex, totalSlides, date, location) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     timeZone: 'Australia/Melbourne',
