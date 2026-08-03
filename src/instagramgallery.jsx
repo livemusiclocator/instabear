@@ -587,19 +587,23 @@ function generateCaption(slideGigs, slideIndex, totalSlides, date, location) {
       // Check if we have an Instagram handle for this venue - ONLY exact ID match
       const venueId = gig.venue.id;
       const venueHandle = venueHandles[venueId] || '';
-      
+      const actHandles = getValidActHandles(gig);
+
       // Debug log each caption line generation
       console.log(`DEBUG: Caption for ${gig.name} @ ${gig.venue.name}:`, {
         venueId,
         exactMatch: venueId in venueHandles,
-        handleResult: venueHandle
+        handleResult: venueHandle,
+        actHandles
       });
-      
-      // Format the caption line with handle if available
+
+      const actSuffix = actHandles.length > 0 ? ` ${actHandles.join(' ')}` : '';
+
+      // Format the caption line with venue/act handles if available
       if (venueHandle) {
-        return `🎤 ${gig.name} @ ${gig.venue.name} (${venueHandle}) - ${gig.start_time}`;
+        return `🎤 ${gig.name} @ ${gig.venue.name} (${venueHandle})${actSuffix} - ${gig.start_time}`;
       } else {
-        return `🎤 ${gig.name} @ ${gig.venue.name} - ${gig.start_time}`;
+        return `🎤 ${gig.name} @ ${gig.venue.name}${actSuffix} - ${gig.start_time}`;
       }
     })
     .join('\n');
