@@ -97,7 +97,7 @@ function buildCombinedCaption(captions) {
 
   // Add venue handles to the caption with updated text
   if (mentionedVenues.length > 0) {
-    combinedCaption += '\n\nShoutout to a random selection of today\'s venues (often there are too many to @ here): ' + mentionedVenues.join(' ');
+    combinedCaption += '\n\nShoutout to a random selection of today\'s venues and artists (often there are too many to @ here): ' + mentionedVenues.join(' ');
     console.log(`DEBUG: Added ${mentionedVenues.length} venue handles to caption`);
   }
 
