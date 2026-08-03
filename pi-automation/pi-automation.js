@@ -100,13 +100,17 @@ async function postLocationCarousel(page, location) {
     await delay(90000);
 }
 
-async function checkCarouselSuccess(page, titleText) {
-    return page.evaluate((searchText) => {
-        const headings = Array.from(document.querySelectorAll('h2'));
-        const heading = headings.find((h) => h.textContent.includes(searchText));
-        if (!heading) return false;
+async function checkCarouselSuccess(page, slug) {
+    return page.evaluate((locationSlug) => {
+        // Scope by data-location-slug, not heading text - the page also
+        // renders an unrelated, unused Stories section with its own
+        // carousels sharing the same location display names (and, until
+        // recently, the same button IDs), so a text-based heading search
+        // can silently match the wrong section.
+        const marker = document.querySelector(`[data-location-slug="${locationSlug}"]`);
+        if (!marker) return false;
 
-        let section = heading.parentElement;
+        let section = marker.parentElement;
         while (section && !section.classList.contains('mb-16')) {
             section = section.parentElement;
         }
@@ -114,7 +118,7 @@ async function checkCarouselSuccess(page, titleText) {
 
         const statusDiv = section.querySelector('div.text-sm.text-gray-600');
         return statusDiv && statusDiv.textContent.includes('Successfully posted to Instagram');
-    }, titleText);
+    }, slug);
 }
 
 async function automate() {
@@ -233,7 +237,7 @@ async function automate() {
 
         const results = [];
         for (const location of attemptedLocations) {
-            const success = await checkCarouselSuccess(page, `${location.displayName} Gigs`);
+            const success = await checkCarouselSuccess(page, location.slug);
             results.push({ location, success });
             if (success) {
                 log(`${location.displayName} carousel was successfully posted to Instagram`);
