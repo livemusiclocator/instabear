@@ -539,6 +539,22 @@ export function extractInstagramHandle(url) {
   return `@${username}`;
 }
 
+// Support acts share a gig, so tag every act with a valid handle, not
+// just the first - valid act data is already rare (~14% of gigs in one
+// sample), so this doesn't meaningfully lengthen captions.
+// eslint-disable-next-line react-refresh/only-export-components
+export function getValidActHandles(gig) {
+  const sets = gig.sets || [];
+  const handles = [];
+  sets.forEach((set) => {
+    const handle = extractInstagramHandle(set.act?.instagram_url);
+    if (handle && !handles.includes(handle)) {
+      handles.push(handle);
+    }
+  });
+  return handles;
+}
+
 function generateCaption(slideGigs, slideIndex, totalSlides, date, location) {
   const formattedDate = new Date(date).toLocaleDateString('en-US', {
     timeZone: 'Australia/Melbourne',
