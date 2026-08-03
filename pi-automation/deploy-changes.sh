@@ -4,7 +4,7 @@
 # Usage: ./deploy-changes.sh [PI_IP_ADDRESS] [USERNAME]
 
 # Default values
-PI_IP=${1:-"192.168.0.152"}
+PI_IP=${1:-"192.168.0.140"}
 PI_USER=${2:-"insta"}
 PI_DIR="instabear_pi"
 MAX_RETRIES=5
